@@ -12,6 +12,9 @@ COPY ./requirements.txt /code/requirements.txt
 # We use --no-cache-dir to keep the image size down
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
+# Create the directory for logs
+RUN mkdir logs
+
 # Copy the rest of the application's code into the container at /code
 COPY ./app /code/app
 
