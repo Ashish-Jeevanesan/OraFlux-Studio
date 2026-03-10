@@ -1,0 +1,308 @@
+# Gemini Implementation Prompt – Ephemeral Oracle Report Viewer (Angular + FastAPI)
+
+> **Purpose:** Use this file as a **single, copy‑paste master prompt** for Gemini to generate a working implementation. It encodes your stack choices and constraints:
+> - **Frontend:** Angular (TypeScript)
+> - **Backend:** FastAPI (Python)
+> - **Database:** Oracle 19c **only**
+> - **State:** **Ephemeral/volatile** (no persistence; nothing stored after tab close)
+
+---
+
+## How to Use This File
+1. Open Gemini and start a new chat.
+2. Copy **everything from the section _“Master Prompt for Gemini (copy-paste below)”_** to the end of this file.
+3. Paste into Gemini and run. If Gemini asks clarifying questions, answer them and let it proceed.
+
+---
+
+## Master Prompt for Gemini (copy-paste below)
+
+**Role**  
+You are an expert full‑stack engineer tasked with building a **lightweight, ephemeral report viewer** with:
+- **Frontend:** Angular (TypeScript)
+- **Backend:** FastAPI (Python)
+- **Database:** Oracle 19c (only)
+- **State:** **Volatile** (no persistence). Nothing is stored—when the browser tab closes, everything is gone.
+
+Your output must be **production‑grade code**, runnable locally, with a clear README. Prefer working code over pseudocode.
+
+---
+
+### 1) Scope & User Flow
+
+**Goal:** Let a user connect to Oracle 19c, run ad‑hoc `SELECT` queries, view paginated results, and build basic charts (bar, line, pie, histogram) from query results using aggregations—**all without saving anything**.
+
+**User flow**
+1. **Start session** → backend returns a `sessionId` (UUID).
+2. **Connect to Oracle** via a simple form (host, port, serviceName, username, password). The backend creates an in‑memory Oracle pool bound to `sessionId`.
+3. **Run Query** → user pastes a `SELECT ...` statement; results load in a **paginated table** (server‑side paging).
+4. **Build Report** → user selects chart type + columns for X/Y (with aggregation, time granularity, bins for histogram) → show chart preview.
+5. **End session** (optional button) → backend closes the pool.
+6. If the browser tab is closed, everything is lost. No storage anywhere.
+
+---
+
+### 2) Technical Constraints & Defaults
+
+- **Angular** v17+ with **Standalone components**, **Angular Material** for UI, **ngx-echarts** for charts.
+- **FastAPI** with `oracledb` (thin mode) for Oracle 19c.
+- **No database to persist app state**; keep everything in memory only.
+- **Security:** enforce **SELECT-only** queries, **read-only DB user**, **timeouts**, and **row caps**.
+- **Pagination:** Oracle 19c `OFFSET :off ROWS FETCH NEXT :lim ROWS ONLY`.
+- **Time granularity:** `TRUNC(date_col, 'YYYY'|'Q'|'MM'|'DD')`.
+- **Histogram:** `WIDTH_BUCKET(value, min, max, bins)`.
+- **IN list binding:** `TABLE(sys.odcivarchar2list(:param))` for safe parameter arrays.
+- **CORS:** allow Angular dev origin.
+- **Timeouts:** default 60s; **row limit** per page: default 500 (cap 10k).
+- **Ask for clarifications once if needed**, otherwise proceed with **sensible defaults**.
+
+---
+
+### 3) API Contract (Ephemeral)
+
+All APIs are **stateless** except for the in‑memory objects bound to `sessionId`.
+
+**1) POST `/session/start` → `{ "sessionId": "uuid" }`**  
+- Creates an ephemeral session handle; no persistence.
+
+**2) POST `/oracle/connect`**  
+Request:
+```json
+{
+  "sessionId": "uuid",
+  "host": "db-host",
+  "port": 1521,
+  "serviceName": "ORCLPDB1",
+  "user": "readonly_user",
+  "password": "****",
+  "ssl": false
+}
+```
+Behavior:
+- Create `oracledb.create_pool(...)` keyed by `sessionId` (min=1, max=4).
+- Use thin mode; if `ssl=true`, include wallet config scaffolding and note in README.
+- Return `{ "ok": true }` on success.
+
+**3) POST `/query/run`**  
+Request:
+```json
+{
+  "sessionId": "uuid",
+  "sql": "SELECT col1, col2, dt FROM sales WHERE status='PAID'",
+  "page": 1,
+  "pageSize": 500,
+  "timeoutSec": 60
+}
+```
+Rules:
+- Reject if not starting with `SELECT`.
+- Wrap with pagination:
+  ```sql
+  SELECT * FROM ( <sql> ) t OFFSET :off ROWS FETCH NEXT :lim ROWS ONLY
+  ```
+Response:
+```json
+{
+  "columns": [{"name":"COL1","type":"VARCHAR2"}, ...],
+  "rows": [[...], [...]],
+  "pageInfo": {"page":1,"pageSize":500},
+  "executionMs": 23,
+  "rowCountLimited": true
+}
+```
+
+**4) POST `/query/aggregate`**  
+Request:
+```json
+{
+  "sessionId": "uuid",
+  "baseSql": "SELECT order_date, region, amount FROM sales WHERE status='PAID'",
+  "chart": {
+    "type": "bar",           // "bar" | "line" | "pie" | "histogram"
+    "x": { "column": "region", "role": "dimension" },
+    "y": { "column": "amount", "agg": "SUM", "role": "measure" },
+    "granularity": null,     // for line charts on date cols: "YYYY"|"Q"|"MM"|"DD"
+    "bins": 20               // for histogram
+  },
+  "filters": [               // optional; parameterized
+    { "column": "region", "op": "IN", "value": ["East","West"] }
+  ],
+  "topN": 10,                // optional for bar/pie
+  "orderBy": [ { "column": "y", "dir": "desc" } ],
+  "timeoutSec": 60
+}
+```
+Behavior:
+- Wrap `baseSql` as a subquery; apply `WHERE` (parameterized), `GROUP BY`, `ORDER BY`, `FETCH FIRST`.
+- **Bar/Pie**:
+  ```sql
+  SELECT {x_expr} AS x, {agg}({y_col}) AS y
+  FROM ( {baseSql} ) t
+  {where}
+  GROUP BY {x_expr}
+  {order_by}
+  {fetch_first}
+  ```
+- **Line** (time series default order by x):
+  ```sql
+  SELECT TRUNC({date_col}, '{gran}') AS x, {agg}({y_col}) AS y
+  FROM ( {baseSql} ) t
+  {where}
+  GROUP BY TRUNC({date_col}, '{gran}')
+  ORDER BY x
+  ```
+- **Histogram**:
+  ```sql
+  WITH stats AS (
+    SELECT MIN({val}) mn, MAX({val}) mx FROM ( {baseSql} ) t {where}
+  ), binned AS (
+    SELECT WIDTH_BUCKET({val}, (SELECT mn FROM stats), (SELECT mx FROM stats), :bins) AS bin
+    FROM ( {baseSql} ) t {where}
+  )
+  SELECT bin AS x, COUNT(*) AS y
+  FROM binned
+  GROUP BY bin
+  ORDER BY bin
+  ```
+Response:
+```json
+{ "columns":[{"name":"X"},{"name":"Y"}], "rows":[[...],[...]], "executionMs": 15 }
+```
+
+**5) POST `/session/close`**  
+- Closes pool, deletes in‑memory entries for `sessionId`.
+
+**Idle sweeper (background task)**  
+- Every N minutes, close pools idle > 15 minutes.
+
+---
+
+### 4) Frontend (Angular) Requirements
+
+- **Standalone Angular components**:
+  1. `ConnectionFormComponent`  
+     - Inputs: host, port, serviceName, user, password  
+     - On submit: `/oracle/connect`; show status (connected/error)
+  2. `SqlRunnerComponent`  
+     - Textarea for SQL; **Run** button  
+     - Material table with server‑side pagination (pass `page`, `pageSize`)  
+     - Shows execution time and row limit indicator
+  3. `ReportBuilderComponent`  
+     - Controls: chart type, X column, Y column + agg (SUM/AVG/COUNT/MIN/MAX)  
+     - For **line**: date `granularity` (YYYY/Q/MM/DD)  
+     - For **histogram**: `bins` input  
+     - **Preview** button → calls `/query/aggregate` → renders chart using **ngx‑echarts**
+- **Services**:
+  - `SessionService`: holds `sessionId` in memory only (no LocalStorage/IndexedDB).
+  - `ApiService`: wraps HTTP calls; auto‑injects `sessionId`.
+- **Styling**: Angular Material components, simple responsive layout.
+- **CORS**: configure backend to allow `http://localhost:4200`.
+- **Error handling**: Display backend `detail` messages; guard against non‑SELECT.
+
+---
+
+### 5) Backend (FastAPI) Requirements
+
+- Use `oracledb` thin mode; connect via `serviceName`. (Add README note for SID variant if needed.)
+- Connection pool per `sessionId` (min=1, max=4).
+- `callTimeout` for query execution (ms).
+- Query guards:
+  - Only allow statements that start with `SELECT` (case‑insensitive, ignore leading whitespace/comments).
+  - Server‑side pagination with `OFFSET...FETCH NEXT...`.
+  - Cap `pageSize` at 10,000.
+- Parameterized filters; safe IN lists via `TABLE(sys.odcivarchar2list(:param))`.
+- Background sweeper for idle sessions.
+- CORS middleware for Angular dev.
+- **No persistence** anywhere.
+
+---
+
+### 6) Oracle SQL Building Rules (must implement)
+
+- Pagination:
+  ```sql
+  SELECT * FROM ( {sql} ) t OFFSET :off ROWS FETCH NEXT :lim ROWS ONLY
+  ```
+- Time grouping:
+  - `TRUNC(date_col, 'YYYY'|'Q'|'MM'|'DD')`
+- Aggregations:
+  - `SUM`, `AVG`, `COUNT`, `COUNT(DISTINCT col)`, `MIN`, `MAX`
+- Histogram:
+  - `WIDTH_BUCKET(value, min, max, bins)`
+- IN binding:
+  - `... IN (SELECT column_value FROM TABLE(sys.odcivarchar2list(:p0)))`
+
+---
+
+### 7) Non‑Functional & Security
+
+- HTTPS ready (doc for local dev with HTTP).
+- Read‑only Oracle credentials (document needed grants).
+- Input validation on API payloads.
+- Sensible defaults:
+  - `timeoutSec`: 60
+  - `pageSize`: 500 (max 10k)
+  - line chart default `ORDER BY x`, bar/pie default `ORDER BY y DESC`
+  - histogram: default 20 bins
+- No analytics/telemetry; no third‑party persistence.
+- Clear error responses (`detail` field).
+
+---
+
+### 8) Deliverables
+
+1. **Repo structure**
+   ```
+   /frontend (Angular app)
+   /backend  (FastAPI app)
+   README.md (root)
+   ```
+2. **Frontend**
+   - Angular v17+ app with the three components and services described.
+   - `ngx-echarts` for charts, Angular Material for UI.
+3. **Backend**
+   - FastAPI app with endpoints above.
+   - Idle sweeper task.
+   - CORS configured for `http://localhost:4200`.
+4. **Run instructions**
+   - Backend: `pip install -r requirements.txt`; `uvicorn app.main:app --reload --port 8000`
+   - Frontend: `npm install`; `ng serve`
+5. **Docker (optional but preferred)**
+   - `Dockerfile` for backend (thin mode, no Instant Client).
+   - `Dockerfile` for frontend (ng build + nginx).
+   - `docker-compose.yml` for local dev.
+6. **Basic tests**
+   - Backend: unit tests for SQL guard (SELECT‑only), aggregation SQL builders, and pagination.
+7. **Code quality**
+   - TypeScript strict mode, ESLint + Prettier.
+   - Python: black/ruff config.
+
+---
+
+### 9) Definition of Done (DoD)
+
+- Can start a session, connect to Oracle 19c with valid creds, and run **SELECT** queries.
+- Paginated table displays results; execution time shown.
+- Report builder can render **bar/line/pie/histogram** with correct aggregations.
+- All state is **ephemeral** (refresh/close tab loses everything).
+- `SELECT` guard and timeouts work; non‑SELECT statements are rejected.
+- README allows a new developer to run everything locally in <10 minutes.
+
+---
+
+### 10) Assumptions & Sensible Defaults (Apply unless overridden)
+
+- Oracle uses **serviceName** (not SID). If SID is required, add an optional `sid` field and logic.
+- No SSL wallet by default; add README section to enable TCPS if needed.
+- Default ports: backend `8000`, frontend `4200`.
+- Default CORS origin: `http://localhost:4200`.
+
+---
+
+### 11) What to Output
+
+- Full code for **both** frontend and backend, with file paths.
+- A **step-by-step README** explaining setup, environment variables (if any), how to run, and how to test.
+- Mention any OS‑specific notes for `oracledb` thin mode if relevant.
+
+If anything is ambiguous, ask **one** concise list of clarifying questions first; otherwise proceed with the defaults above and deliver the working implementation.

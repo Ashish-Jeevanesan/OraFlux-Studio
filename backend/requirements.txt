@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+oracledb
+pydantic
+python-dotenv
+aiofiles
+black
+ruff
+pytest
+httpx

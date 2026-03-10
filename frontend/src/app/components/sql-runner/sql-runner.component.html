@@ -1,0 +1,54 @@
+<!-- frontend/src/app/components/sql-runner/sql-runner.component.html -->
+<mat-card>
+  <mat-card-header>
+    <mat-card-title>SQL Runner</mat-card-title>
+    <mat-card-subtitle>Enter a SELECT statement to run against the database</mat-card-subtitle>
+  </mat-card-header>
+  <mat-card-content>
+    <mat-form-field class="sql-textarea" appearance="outline">
+      <mat-label>SQL Query (SELECT only)</mat-label>
+      <textarea matInput cdkTextareaAutosize cdkAutosizeMinRows="3" cdkAutosizeMaxRows="10" [(ngModel)]="sqlQuery"></textarea>
+    </mat-form-field>
+    
+    <div class="error-message" *ngIf="errorMessage">
+      {{ errorMessage }}
+    </div>
+
+  </mat-card-content>
+  <mat-card-actions>
+    <button mat-raised-button color="primary" (click)="runQuery()" [disabled]="isLoading || !sqlQuery">
+      <span *ngIf="!isLoading">Run Query</span>
+      <mat-spinner *ngIf="isLoading" diameter="20"></mat-spinner>
+    </button>
+  </mat-card-actions>
+
+  <div class="results-container" *ngIf="dataSource.data.length > 0">
+    <div class="results-header">
+      <h3>Query Results</h3>
+      <span class="execution-info">
+        Execution Time: {{ executionTime }}ms
+        <span *ngIf="rowCountLimited" class="limit-warning"> (Result set limited)</span>
+      </span>
+    </div>
+
+    <mat-table [dataSource]="dataSource">
+      <!-- Dynamic column generation -->
+      <ng-container *ngFor="let col of columns; let i = index" [matColumnDef]="col.name">
+        <mat-header-cell *matHeaderCellDef>{{ col.name }} ({{col.type}})</mat-header-cell>
+        <mat-cell *matCellDef="let row">{{ getCellValue(row, i) }}</mat-cell>
+      </ng-container>
+
+      <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+      <mat-row *matRowDef="let row; columns: displayedColumns;"></mat-row>
+    </mat-table>
+
+    <mat-paginator
+      [length]="totalRows"
+      [pageSize]="pageSize"
+      [pageSizeOptions]="pageSizeOptions"
+      [pageIndex]="currentPage"
+      (page)="handlePageEvent($event)"
+      aria-label="Select page">
+    </mat-paginator>
+  </div>
+</mat-card>

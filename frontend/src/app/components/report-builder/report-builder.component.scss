@@ -1,0 +1,63 @@
+/* frontend/src/app/components/report-builder/report-builder.component.scss */
+:host {
+  display: block;
+}
+
+.builder-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-row {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+
+  mat-form-field {
+    flex: 1;
+  }
+}
+
+.metric-group {
+  border: 1px solid #eee;
+  padding: 1rem;
+  margin-top: 1rem;
+  border-radius: 4px;
+
+  h4 {
+    margin-top: 0;
+    color: #666;
+  }
+}
+
+mat-slide-toggle {
+  margin: 1rem 0;
+}
+
+.error-message {
+  color: red;
+  margin-top: 1rem;
+  font-weight: bold;
+}
+
+mat-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 1rem 1rem 1rem;
+}
+
+mat-spinner {
+  display: inline-block;
+  margin: 0 5px;
+}
+
+.chart-container {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border-top: 1px solid #eee;
+
+  div[echarts] {
+    height: 400px;
+  }
+}

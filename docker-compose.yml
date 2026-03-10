@@ -1,0 +1,30 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/app:/code/app
+    environment:
+      # This is where you could put environment variables if needed
+      # e.g., ORACLE_USER: readonly_user
+      - APP_ENV=development
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "4200:80" # Nginx in the container runs on port 80
+    volumes:
+      # In development, you might mount your source code to see changes live.
+      # However, for a simple setup, rebuilding the image is fine.
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+networks:
+  default:
+    driver: bridge

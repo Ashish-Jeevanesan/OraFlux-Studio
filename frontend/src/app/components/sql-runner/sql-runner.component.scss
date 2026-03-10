@@ -1,0 +1,62 @@
+/* frontend/src/app/components/sql-runner/sql-runner.component.scss */
+:host {
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.sql-textarea {
+  width: 100%;
+}
+
+.error-message {
+  color: red;
+  margin-top: 1rem;
+  font-weight: bold;
+}
+
+mat-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 1rem 1rem 1rem;
+}
+
+mat-spinner {
+  display: inline-block;
+  margin: 0 5px;
+}
+
+.results-container {
+  margin-top: 1rem;
+  
+  .results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 1rem;
+    margin-bottom: 0.5rem;
+
+    h3 {
+      margin: 0;
+    }
+
+    .execution-info {
+      font-style: italic;
+      color: #666;
+    }
+
+    .limit-warning {
+      color: orange;
+      font-weight: bold;
+      margin-left: 0.5rem;
+    }
+  }
+}
+
+mat-table {
+  width: 100%;
+
+  .mat-mdc-header-cell, .mat-mdc-cell {
+    padding: 0 8px;
+    height: 36px;
+  }
+}

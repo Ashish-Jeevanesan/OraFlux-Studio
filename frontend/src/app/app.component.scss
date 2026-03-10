@@ -1,0 +1,14 @@
+/* frontend/src/app/app.component.scss */
+.main-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.toolbar-spacer {
+  flex: 1 1 auto;
+}
+
+.content {
+  padding: 2rem;
+}

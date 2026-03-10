@@ -1,0 +1,94 @@
+<!-- frontend/src/app/components/report-builder/report-builder.component.html -->
+<mat-card *ngIf="columns.length > 0">
+  <mat-card-header>
+    <mat-card-title>Report Builder</mat-card-title>
+    <mat-card-subtitle>Create a chart from the query results</mat-card-subtitle>
+  </mat-card-header>
+  <mat-card-content>
+    <form [formGroup]="builderForm" class="builder-form">
+      <!-- Row 1: Chart Type & X-Axis -->
+      <div class="form-row">
+        <mat-form-field appearance="fill">
+          <mat-label>Chart Type</mat-label>
+          <mat-select formControlName="chartType">
+            <mat-option *ngFor="let type of chartTypes" [value]="type">{{ type | titlecase }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="fill">
+          <mat-label>X-Axis Column</mat-label>
+          <mat-select formControlName="xColumn">
+            <mat-option *ngFor="let col of columns" [value]="col.name">{{ col.name }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+        
+        <!-- Conditional field for Line Chart -->
+        <mat-form-field *ngIf="builderForm.get('chartType')?.value === 'line'" appearance="fill">
+          <mat-label>Time Granularity</mat-label>
+          <mat-select formControlName="granularity">
+            <mat-option *ngFor="let g of granularities" [value]="g">{{ g }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <!-- Metric 1 (Y-Axis 1) -->
+      <div class="metric-group">
+        <h4>Metric 1 (Left Axis)</h4>
+        <div class="form-row">
+          <mat-form-field appearance="fill">
+            <mat-label>Y-Axis Column</mat-label>
+            <mat-select formControlName="y1Column">
+              <mat-option value="*">* (for COUNT)</mat-option>
+              <mat-option *ngFor="let col of columns" [value]="col.name">{{ col.name }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="fill">
+            <mat-label>Aggregation</mat-label>
+            <mat-select formControlName="y1Aggregation">
+              <mat-option *ngFor="let agg of aggregations" [value]="agg">{{ agg }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+      </div>
+      
+      <!-- Add Second Metric Toggle -->
+      <mat-slide-toggle [(ngModel)]="showSecondYAxis" [ngModelOptions]="{standalone: true}">
+        Add Second Metric (Right Axis)
+      </mat-slide-toggle>
+
+      <!-- Metric 2 (Y-Axis 2) - Optional -->
+      <div class="metric-group" *ngIf="showSecondYAxis">
+        <h4>Metric 2 (Right Axis)</h4>
+        <div class="form-row">
+          <mat-form-field appearance="fill">
+            <mat-label>Y-Axis Column</mat-label>
+            <mat-select formControlName="y2Column">
+              <mat-option value="*">* (for COUNT)</mat-option>
+              <mat-option *ngFor="let col of columns" [value]="col.name">{{ col.name }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="fill">
+            <mat-label>Aggregation</mat-label>
+            <mat-select formControlName="y2Aggregation">
+              <mat-option *ngFor="let agg of aggregations" [value]="agg">{{ agg }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+      </div>
+
+      <div class="error-message" *ngIf="errorMessage">
+        {{ errorMessage }}
+      </div>
+    </form>
+  </mat-card-content>
+  <mat-card-actions>
+    <button mat-raised-button color="primary" (click)="generateReport()" [disabled]="isLoading || builderForm.invalid">
+      <span *ngIf="!isLoading">Generate Chart</span>
+      <mat-spinner *ngIf="isLoading" diameter="20"></mat-spinner>
+    </button>
+  </mat-card-actions>
+
+  <div *ngIf="chartOption" class="chart-container">
+    <div echarts [options]="chartOption"></div>
+  </div>
+</mat-card>

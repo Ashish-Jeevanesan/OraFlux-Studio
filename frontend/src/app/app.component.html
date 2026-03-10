@@ -1,0 +1,22 @@
+<!-- frontend/src/app/app.component.html -->
+<mat-toolbar color="primary" class="main-toolbar">
+  <span>Ephemeral Oracle Report Viewer</span>
+  <span class="toolbar-spacer"></span>
+  <a mat-button href="https://github.com/your-repo/here" target="_blank">
+    GitHub
+  </a>
+</mat-toolbar>
+
+<main class="content">
+  <div *ngIf="!isConnected; else mainApp">
+    <app-connection-form (connectionSuccess)="onConnectionSuccess()"></app-connection-form>
+  </div>
+
+  <ng-template #mainApp>
+    <app-sql-runner (querySuccess)="onQuerySuccess($event)"></app-sql-runner>
+    <app-report-builder 
+      [baseSql]="lastSuccessfulSql" 
+      [columns]="lastQueryColumns">
+    </app-report-builder>
+  </ng-template>
+</main>
