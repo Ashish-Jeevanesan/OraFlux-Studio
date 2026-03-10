@@ -54,3 +54,25 @@ This file logs the automated development and verification process for the Epheme
 
 - The final project structure includes separate, containerized applications for the frontend and backend, a `docker-compose.yml` for orchestration, and a comprehensive `README.md` for setup instructions.
 - Cleaned up the extraneous `.git` directory created by the Angular CLI in the `frontend` subfolder.
+
+## 6. Advanced Features and UI/UX Overhaul
+
+- **AI-Powered Chart Suggestions:**
+    - Implemented a heuristic-based suggestion engine (`ChartSuggestionService`) to analyze query results and suggest relevant charts.
+    - Created a new `ChartSuggestionsComponent` to display clickable suggestions to the user.
+    - Integrated the suggestions into the main application flow, allowing one-click generation of charts.
+- **Interactive Chart Drill-Down:**
+    - Implemented a new `/query/drilldown` backend endpoint to fetch the raw data for a specific chart segment.
+    - Added a `(chartClick)` handler on the frontend to capture user interaction.
+    - Created a `DrilldownDataDialogComponent` to display the filtered raw data in a paginated table.
+- **"OraFlux Studio" Rebranding and Theming:**
+    - Renamed the project to "OraFlux Studio" in all relevant UI elements and configuration files.
+    - Implemented a new, professional "Flux Blue" color palette by creating a custom Angular Material theme in `styles.scss`.
+- **Intensive UI/UX Debugging:**
+    - Fixed numerous backend startup errors related to database connection (`DPY-4027`), async operations, and module imports (`NameError`).
+    - Resolved a persistent frontend issue where Material Icons failed to load by removing external font links and instead installing and importing the icons directly via an NPM package. This was ultimately fixed by injecting the SVGs directly into the components.
+    - Fixed a `textarea` UI bug where the label would overlap with the text.
+    - Corrected the layout and spacing of all form components for a more polished and readable interface.
+- **Git Repository Setup:**
+    - Guided the user through setting up a local Git repository with a repository-specific SSH key to avoid conflicts with global work configurations.
+    - Successfully pushed the entire project to the user's personal GitHub repository.
