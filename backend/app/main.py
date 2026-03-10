@@ -71,7 +71,7 @@ app = FastAPI(
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4200"],  # Angular dev server
+    allow_origins=["http://localhost:4200", "https://ora-flux-studio.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
