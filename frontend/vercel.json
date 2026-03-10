@@ -4,6 +4,10 @@
     {
       "source": "/api/(.*)",
       "destination": "$BACKEND_API_URL/api/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
