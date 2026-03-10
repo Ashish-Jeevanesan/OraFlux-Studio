@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "$BACKEND_API_URL/api/$1"
+    }
+  ]
+}

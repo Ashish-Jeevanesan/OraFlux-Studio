@@ -188,11 +188,12 @@ Render will build the `Dockerfile` from the `/backend` directory and deploy your
 2.  **New Project:** From your dashboard, click **Add New...** > **Project**.
 3.  **Import Repository:** Connect your GitHub and select the `Ashish-Jeevanesan/OraFlux-Studio` repository.
 4.  **Configure Project:**
-    *   **IMPORTANT:** Vercel will auto-detect the Angular framework. **Do not change the "Root Directory" setting.** Leave it as the default (`/`). The `vercel.json` file handles the monorepo structure.
+    *   Vercel should auto-detect the Angular framework.
+    *   **IMPORTANT:** Set the **Root Directory** to `frontend`. This tells Vercel to run the build from within your Angular project folder, where the now-corrected `vercel.json` lives.
     *   Expand the **Environment Variables** section.
     *   Add the following variable, pasting the URL you copied from Render:
         *   **Name:** `BACKEND_API_URL`
         *   **Value:** `https://oraflux-studio-backend.onrender.com` (Replace with your actual Render URL).
 5.  **Deploy:** Click the **Deploy** button.
 
-Your OraFlux Studio is now live. The Vercel-hosted frontend will automatically proxy all API requests to your Render-hosted backend.
+Your OraFlux Studio is now live. The Vercel-hosted frontend will automatically find the `vercel.json` file and proxy all API requests to your live backend service.
