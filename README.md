@@ -193,7 +193,8 @@ Render will build the `Dockerfile` from the `/backend` directory and deploy your
     *   Expand the **Environment Variables** section.
     *   Add the following variable, pasting the URL you copied from Render:
         *   **Name:** `BACKEND_API_URL`
-        *   **Value:** `https://oraflux-studio-backend.onrender.com` (Replace with your actual Render URL).
+        *   **Value:** `http://localhost:8000`
+    *   **Note:** By using `localhost` as the backend URL, your deployed Vercel frontend will only work when you are also running the backend server locally on your own machine. This is ideal for development and testing. To share the app with others, you would first need to deploy the backend to a public service like Render and use that public URL here instead.
 5.  **Deploy:** Click the **Deploy** button.
 
 Your OraFlux Studio is now live. The Vercel-hosted frontend will automatically find the `vercel.json` file and proxy all API requests to your live backend service.

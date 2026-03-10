@@ -76,3 +76,15 @@ This file logs the automated development and verification process for the Epheme
 - **Git Repository Setup:**
     - Guided the user through setting up a local Git repository with a repository-specific SSH key to avoid conflicts with global work configurations.
     - Successfully pushed the entire project to the user's personal GitHub repository.
+
+## 7. Deployment and Final Fixes
+
+- **Vercel Deployment:**
+    - Prepared the project for frontend deployment on Vercel by creating a `vercel.json` configuration file.
+    - Guided the user through creating a project on Vercel and connecting their GitHub repository.
+- **Intensive Deployment Debugging:**
+    - Encountered a persistent `404: NOT_FOUND` error on the deployed Vercel application.
+    - **Attempt 1:** Corrected the `vercel.json` builder from `@vercel/angular` to rely on Vercel's auto-detection. **Failed.**
+    - **Attempt 2:** Simplified `vercel.json` to only include the SPA fallback rewrite rule to isolate the issue. **Failed.**
+    - **Attempt 3 (Forensic):** Added a `ls -R dist` command to the build script to inspect Vercel's build output. The log revealed the application files were being placed in `dist/browser`.
+    - **Attempt 4:** Based on the forensic log, corrected the `outputPath` in `angular.json` to `"dist"` and instructed the user to set the Vercel UI "Output Directory" to `dist/browser`. This was the final, successful solution.
