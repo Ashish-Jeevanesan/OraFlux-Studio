@@ -1,15 +1,16 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "frontend/package.json",
-      "use": "@vercel/angular"
-    }
-  ],
+  "rootDirectory": "frontend",
+  "build": {
+    "command": "npm run build"
+  },
+  "install": {
+    "command": "npm install"
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api"
+      "destination": "$BACKEND_API_URL/api/$1"
     }
   ]
 }
