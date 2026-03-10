@@ -1,22 +1,32 @@
 <!-- frontend/src/app/app.component.html -->
 <mat-toolbar color="primary" class="main-toolbar">
-  <span>Ephemeral Oracle Report Viewer</span>
+  <img src="assets/logo.svg" alt="OraFlux Studio Logo" class="toolbar-logo">
+  <span>OraFlux Studio</span>
   <span class="toolbar-spacer"></span>
-  <a mat-button href="https://github.com/your-repo/here" target="_blank">
-    GitHub
+  <a mat-icon-button href="https://github.com/Ashish-Jeevanesan/OraFlux-Studio" target="_blank" aria-label="GitHub Repository">
+    <mat-icon svgIcon="github-logo"></mat-icon>
   </a>
 </mat-toolbar>
 
 <main class="content">
-  <div *ngIf="!isConnected; else mainApp">
+  <div *ngIf="!isConnected; else mainApp" class="main-app-container">
     <app-connection-form (connectionSuccess)="onConnectionSuccess()"></app-connection-form>
   </div>
 
   <ng-template #mainApp>
-    <app-sql-runner (querySuccess)="onQuerySuccess($event)"></app-sql-runner>
-    <app-report-builder 
-      [baseSql]="lastSuccessfulSql" 
-      [columns]="lastQueryColumns">
-    </app-report-builder>
+    <div class="main-app-container">
+      <app-sql-runner (querySuccess)="onQuerySuccess($event)"></app-sql-runner>
+      
+      <app-chart-suggestions 
+        [columns]="lastQueryColumns" 
+        (suggestionClick)="onSuggestionClicked($event)">
+      </app-chart-suggestions>
+
+      <app-report-builder 
+        [baseSql]="lastSuccessfulSql" 
+        [columns]="lastQueryColumns"
+        [suggestion]="activeSuggestion">
+      </app-report-builder>
+    </div>
   </ng-template>
 </main>

@@ -12,6 +12,7 @@ from .services.oracle_service import OracleService
 from .services.sql_builder import (
     build_aggregate_sql,
     build_paginated_sql,
+    build_drilldown_sql,
     is_select_only_query
 )
 from .models import (
@@ -21,6 +22,7 @@ from .models import (
     QueryRunResponse,
     AggregateQueryRequest,
     AggregateQueryResponse,
+    DrilldownRequest,
     SessionCloseRequest,
     StatusResponse,
 )
@@ -136,6 +138,31 @@ async def run_aggregate_query(req: AggregateQueryRequest):
     except Exception as e:
         logger.error(f"[{req.sessionId}] Aggregation query failed: {e}")
         raise HTTPException(status_code=400, detail=f"Aggregation failed: {e}")
+
+
+@app.post("/query/drilldown", response_model=QueryRunResponse)
+async def run_drilldown_query(req: DrilldownRequest):
+    """Runs a paginated query to get the raw data for a chart segment."""
+    if not is_select_only_query(req.originalRequest.baseSql):
+        raise HTTPException(
+            status_code=403, detail="Only SELECT queries are allowed in the base SQL."
+        )
+
+    try:
+        drilldown_sql, bind_vars = build_drilldown_sql(req)
+        
+        result = await oracle_service.execute_query(
+            session_id=req.originalRequest.sessionId,
+            sql=drilldown_sql,
+            binds=bind_vars,
+            timeout_sec=req.originalRequest.timeoutSec,
+        )
+        # We need to manually add the page to the result for the dialog paginator
+        result['pageInfo']['page'] = req.page
+        return QueryRunResponse(**result)
+    except Exception as e:
+        logger.error(f"[{req.originalRequest.sessionId}] Drilldown query failed: {e}")
+        raise HTTPException(status_code=400, detail=f"Drilldown query execution failed: {e}")
 
 
 @app.post("/session/close", response_model=StatusResponse)

@@ -1,0 +1,36 @@
+<h2 mat-dialog-title>Drill-down for: {{ data.drilldownRequest['clickedValue'] }}</h2>
+<mat-dialog-content class="mat-typography">
+  <div *ngIf="isLoading" class="spinner-overlay">
+    <mat-spinner></mat-spinner>
+  </div>
+  
+  <div class="results-container" *ngIf="dataSource.data.length > 0">
+    <mat-table [dataSource]="dataSource">
+      <!-- Dynamic column generation -->
+      <ng-container *ngFor="let col of columns; let i = index" [matColumnDef]="col.name">
+        <mat-header-cell *matHeaderCellDef>{{ col.name }}</mat-header-cell>
+        <mat-cell *matCellDef="let row">{{ getCellValue(row, i) }}</mat-cell>
+      </ng-container>
+
+      <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+      <mat-row *matRowDef="let row; columns: displayedColumns;"></mat-row>
+    </mat-table>
+
+    <mat-paginator
+      [length]="totalRows"
+      [pageSize]="pageSize"
+      [pageSizeOptions]="pageSizeOptions"
+      [pageIndex]="currentPage"
+      (page)="handlePageEvent($event)"
+      aria-label="Select page">
+    </mat-paginator>
+  </div>
+
+  <p *ngIf="!isLoading && dataSource.data.length === 0">
+    No data found for this selection.
+  </p>
+
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close>Close</button>
+</mat-dialog-actions>

@@ -73,6 +73,13 @@ export interface AggregateQueryRequest {
     sessionId: string;
 }
 
+export interface DrilldownRequest {
+    originalRequest: Omit<AggregateQueryRequest, 'sessionId'>;
+    clickedValue: any;
+    page: number;
+    pageSize: number;
+}
+
 
 // --- API Response Payloads ---
 

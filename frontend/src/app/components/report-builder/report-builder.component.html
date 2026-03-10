@@ -15,7 +15,7 @@
           </mat-select>
         </mat-form-field>
 
-        <mat-form-field appearance="fill">
+        <mat-form-field appearance="fill" *ngIf="builderForm.get('chartType')?.value !== 'histogram'">
           <mat-label>X-Axis Column</mat-label>
           <mat-select formControlName="xColumn">
             <mat-option *ngFor="let col of columns" [value]="col.name">{{ col.name }}</mat-option>
@@ -89,6 +89,6 @@
   </mat-card-actions>
 
   <div *ngIf="chartOption" class="chart-container">
-    <div echarts [options]="chartOption"></div>
+    <div echarts [options]="chartOption" (chartClick)="onChartClick($event)"></div>
   </div>
 </mat-card>

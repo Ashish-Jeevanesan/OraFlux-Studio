@@ -8,6 +8,12 @@
   width: 100%;
 }
 
+// This is a forceful fix to prevent the floating label from ever overlapping.
+// The label inside the text area border will still function correctly.
+:host ::ng-deep .sql-textarea .mdc-floating-label {
+  display: none !important;
+}
+
 .error-message {
   color: red;
   margin-top: 1rem;

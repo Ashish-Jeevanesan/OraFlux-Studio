@@ -1,0 +1,12 @@
+<mat-card *ngIf="suggestions.length > 0">
+  <mat-card-header>
+    <mat-card-title>Chart Suggestions</mat-card-title>
+    <mat-card-subtitle>Click one to pre-fill the Report Builder</mat-card-subtitle>
+  </mat-card-header>
+  <mat-card-content class="suggestions-container">
+    <button mat-stroked-button *ngFor="let s of suggestions" (click)="onSuggestionClick(s.config)">
+      <mat-icon svgIcon="auto_awesome"></mat-icon>
+      <span>{{ s.title }}</span>
+    </button>
+  </mat-card-content>
+</mat-card>

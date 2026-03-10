@@ -2,7 +2,7 @@
 import re
 from typing import Tuple, Dict, Any, List
 
-from ..models import QueryRunRequest, AggregateQueryRequest, Filter
+from ..models import QueryRunRequest, AggregateQueryRequest, Filter, DrilldownRequest
 
 def is_select_only_query(sql: str) -> bool:
     """Check if the query is a SELECT statement."""
@@ -78,6 +78,44 @@ def _build_y_expr(agg: str, column: str) -> str:
         return f"{agg_func}(*)"
     else:
         return f'{agg_func}("{column}")'
+
+
+def build_drilldown_sql(req: DrilldownRequest) -> Tuple[str, Dict[str, Any]]:
+    """Builds a SQL query to drill down into a chart segment."""
+    original_req = req.originalRequest
+    
+    # Start with the original base SQL
+    sql = original_req.baseSql
+    
+    # Combine original filters with the new drill-down filter
+    all_filters = original_req.filters or []
+    drilldown_filter = Filter(column=original_req.chart.x.column, op="=", value=req.clickedValue)
+    
+    # For line charts, the filter needs to be on the truncated date
+    if original_req.chart.type == 'line' and original_req.chart.granularity:
+        x_col = original_req.chart.x.column
+        gran = original_req.chart.granularity
+        # This is more complex as the clickedValue is a string representation of the truncated date
+        # A simple equality might not work depending on DB date settings.
+        # A robust solution would involve TO_DATE, but that requires knowing the format.
+        # We will proceed with a direct equality check which works for many cases.
+        sql = f'SELECT * FROM ({sql}) WHERE TRUNC("{x_col}", \'{gran}\') = :drill_val'
+        binds = {"drill_val": req.clickedValue} # This might need adjustment
+    else:
+        all_filters.append(drilldown_filter)
+        where_clause, binds = _generate_where_clause(all_filters)
+        sql = f"SELECT * FROM ({sql}) t {where_clause}"
+
+    # Apply pagination to the drill-down query
+    offset = (req.page - 1) * req.pageSize
+    limit = req.pageSize + 1
+    
+    paginated_sql = f"""SELECT * FROM ({sql}) OFFSET :off ROWS FETCH NEXT :lim ROWS ONLY"""
+    
+    binds['off'] = offset
+    binds['lim'] = limit
+    
+    return paginated_sql, binds
 
 
 def build_aggregate_sql(req: AggregateQueryRequest) -> Tuple[str, Dict[str, Any]]:

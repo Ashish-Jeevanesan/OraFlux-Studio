@@ -7,7 +7,7 @@
   <mat-card-content>
     <mat-form-field class="sql-textarea" appearance="outline">
       <mat-label>SQL Query (SELECT only)</mat-label>
-      <textarea matInput cdkTextareaAutosize cdkAutosizeMinRows="3" cdkAutosizeMaxRows="10" [(ngModel)]="sqlQuery"></textarea>
+      <textarea matInput rows="5" [(ngModel)]="sqlQuery"></textarea>
     </mat-form-field>
     
     <div class="error-message" *ngIf="errorMessage">

@@ -1,40 +1,90 @@
 /* frontend/src/styles.scss */
-// Custom Theming for Angular Material
-// For more information: https://material.angular.io/guide/theming
 @use '@angular/material' as mat;
-// Plus imports for other components in your app.
 
-// Include the common styles for Angular Material. We include this here so that you only
-// have to load a single css file for Angular Material in your app.
-// Be sure that you only ever include this mixin once!
+/* You can add global styles to this file, and also import other style files */
+@import '@fontsource/material-icons/index.css';
+
+// Include the common styles for Angular Material.
 @include mat.core();
 
-// Define the palettes for your theme using the Material Design palettes available in palette.scss
-// (imported above). For each palette, you can optionally specify a default, lighter, and darker
-// hue.
-// https://material.io/design/color/the-color-system.html
-$report-viewer-primary: mat.define-palette(mat.$indigo-palette);
-$report-viewer-accent: mat.define-palette(mat.$pink-palette, A200, A100, A400);
+// Define the color palettes based on the "Flux Blue" theme
+$oraflux-primary-palette: (
+  50: #e4e9ff,
+  100: #bac6ff,
+  200: #8ba2ff,
+  300: #5c84ff,
+  400: #3E6FF9,
+  500: #2962FF, // Primary
+  600: #2256e1,
+  700: #1a49c3,
+  800: #133b9f,
+  900: #00297A,
+  contrast: (
+    50: #000000,
+    100: #000000,
+    200: #000000,
+    300: #000000,
+    400: #ffffff,
+    500: #ffffff,
+    600: #ffffff,
+    700: #ffffff,
+    800: #ffffff,
+    900: #ffffff,
+  )
+);
 
-// The warn palette is optional (defaults to red).
-$report-viewer-warn: mat.define-palette(mat.$red-palette);
+$oraflux-accent-palette: (
+  50: #ede7ff,
+  100: #d3c4ff,
+  200: #b49eff,
+  300: #9479ff,
+  400: #7C4DFF, // Secondary/Accent
+  500: #6b3eff,
+  600: #5a30f1,
+  700: #4922e0,
+  800: #3816cf,
+  900: #1c03b1,
+  contrast: (
+    50: #000000,
+    100: #000000,
+    200: #000000,
+    300: #000000,
+    400: #ffffff,
+    500: #ffffff,
+    600: #ffffff,
+    700: #ffffff,
+    800: #ffffff,
+    900: #ffffff,
+  )
+);
 
-// Create the theme object. A theme consists of configurations for individual
-// theming systems such as "color" or "typography".
-$report-viewer-theme: mat.define-light-theme((
+$oraflux-warn-palette: mat.define-palette(mat.$red-palette);
+
+// Create the theme object.
+$oraflux-primary: mat.define-palette($oraflux-primary-palette, 500, 300, 700);
+$oraflux-accent: mat.define-palette($oraflux-accent-palette, 400, 200, 700);
+
+$oraflux-theme: mat.define-light-theme((
   color: (
-    primary: $report-viewer-primary,
-    accent: $report-viewer-accent,
-    warn: $report-viewer-warn,
+    primary: $oraflux-primary,
+    accent: $oraflux-accent,
+    warn: $oraflux-warn-palette,
   )
 ));
 
-// Include theme styles for core and each component used in your app.
-// Alternatively, you can import and @include the theme mixins for each component
-// that you are using.
-@include mat.all-component-themes($report-viewer-theme);
+// Apply the theme to all Angular Material components.
+@include mat.all-component-themes($oraflux-theme);
 
-/* Global Styles */
+/* Global Styles & Variables */
+:root {
+  --background-color: #FAFAFA;
+  --surface-color: #FFFFFF;
+  --on-background-color: #1F1F1F;
+  --divider-color: #E0E0E0;
+  --chart-accent-1: #00E5FF;
+  --chart-accent-2: #00C853;
+}
+
 html, body {
   height: 100%;
 }
@@ -42,16 +92,27 @@ html, body {
 body {
   margin: 0;
   font-family: Roboto, "Helvetica Neue", sans-serif;
-  background-color: #f5f5f5;
+  background-color: var(--background-color);
+  color: var(--on-background-color);
+}
+
+// Give all cards a consistent, modern elevation style
+.mat-mdc-card {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.05), 0 1px 3px rgba(0,0,0,0.08) !important;
+  transition: box-shadow 0.3s ease-in-out;
+
+  &:hover {
+    box-shadow: 0 6px 12px rgba(0,0,0,0.08), 0 3px 6px rgba(0,0,0,0.1) !important;
+  }
 }
 
 /* Custom snackbar styles */
 .success-snackbar {
-  background-color: #4CAF50; /* Green */
+  background-color: var(--chart-accent-2);
   color: white;
 }
 
 .error-snackbar {
-  background-color: #f44336; /* Red */
+  background-color: #D32F2F;
   color: white;
 }

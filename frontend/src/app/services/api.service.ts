@@ -10,6 +10,7 @@ import {
   OracleConnectRequest,
   QueryRunRequest,
   AggregateQueryRequest,
+  DrilldownRequest,
   StatusResponse,
   QueryRunResponse,
   AggregateQueryResponse,
@@ -62,6 +63,17 @@ export class ApiService {
     };
     return this.http
       .post<AggregateQueryResponse>(`${this.apiUrl}/query/aggregate`, payload)
+      .pipe(catchError(this.handleError));
+  }
+
+  /**
+   * Runs a drilldown query to get raw data for a chart segment.
+   * @param drilldownDetails - The drilldown details.
+   */
+  runDrilldownQuery(drilldownDetails: DrilldownRequest): Observable<QueryRunResponse> {
+    // The sessionId is already inside the originalRequest object in the payload
+    return this.http
+      .post<QueryRunResponse>(`${this.apiUrl}/query/drilldown`, drilldownDetails)
       .pipe(catchError(this.handleError));
   }
 

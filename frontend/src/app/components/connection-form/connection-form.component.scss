@@ -7,28 +7,18 @@
 .connect-form {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 1rem; // Adjust gap for single column
 }
 
-.form-row {
-  display: flex;
-  gap: 1rem;
-  
-  mat-form-field {
-    flex: 1;
-  }
+.ssl-toggle {
+  margin-bottom: 1rem;
 }
 
 .error-message {
-  color: red;
-  margin-top: 1rem;
-  font-weight: bold;
-}
-
-mat-card-actions {
-  display: flex;
-  justify-content: flex-end;
-  padding: 0 1rem 1rem 1rem;
+  color: var(--mat-warn-500, #f44336); // Use theme variable
+  font-size: 0.875rem;
+  padding: 0 16px;
+  text-align: center;
 }
 
 mat-spinner {

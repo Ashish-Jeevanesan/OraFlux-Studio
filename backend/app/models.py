@@ -121,6 +121,13 @@ class AggregateQueryResponse(BaseModel):
     rows: List[List[Any]]
     executionMs: float
 
+# /query/drilldown
+class DrilldownRequest(BaseModel):
+    originalRequest: AggregateQueryRequest
+    clickedValue: Any
+    page: int = Field(1, ge=1)
+    pageSize: int = Field(500, ge=1, le=10000)
+
 # /session/close
 class SessionCloseRequest(BaseModel):
     sessionId: UUID
