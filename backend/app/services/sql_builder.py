@@ -119,7 +119,25 @@ def build_drilldown_sql(req: DrilldownRequest) -> Tuple[str, Dict[str, Any]]:
 
 
 def build_aggregate_sql(req: AggregateQueryRequest) -> Tuple[str, Dict[str, Any]]:
-    """Builds a safe, aggregated query for chart generation."""
+    """
+    Builds a complex, safe, aggregated query for chart generation.
+
+    This function is the core of the chart-building logic. It takes the user's
+    base query and a chart configuration and constructs a new SQL query to
+    produce aggregated data suitable for visualization.
+
+    The process is as follows:
+    1.  Applies any user-defined filters to the base query by generating a WHERE clause.
+    2.  Generates the SELECT expressions for each Y-axis metric requested by the user,
+        aliasing them as y0, y1, y2, etc.
+    3.  Constructs the final query, which differs based on the chart type:
+        - **Bar/Line/Pie:** Wraps the base query, applies the WHERE clause, and then
+          groups by the selected X-axis dimension.
+        - **Histogram:** Uses a series of Common Table Expressions (CTEs) to first
+          calculate the min/max of the data, then uses the WIDTH_BUCKET function
+          to group values into bins, and finally counts the items in each bin.
+    4.  Returns the final SQL string and a dictionary of all necessary bind variables.
+    """
     chart_type = req.chart.type
     where_clause, binds = _generate_where_clause(req.filters or [])
     

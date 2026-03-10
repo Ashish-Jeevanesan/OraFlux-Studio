@@ -15,6 +15,17 @@ logger = logging.getLogger(__name__)
 
 # Fetch formatting for different Oracle types
 def _output_type_handler(cursor, name, default_type, size, precision, scale):
+    """
+    An output type handler for the python-oracledb driver.
+    
+    This function is called for each column in a query result and can be used
+    to change how data is converted from Oracle types to Python types.
+    
+    Here, we use it to ensure data is "JSON safe" for the frontend:
+    - CLOB/BLOB: Fetched as strings/bytes.
+    - NUMBER: Converted to a string to avoid potential float precision errors in JavaScript.
+    - DATE/TIMESTAMP: Converted to a standard ISO 8601 string format.
+    """
     if default_type == oracledb.DB_TYPE_CLOB:
         return cursor.var(str, arraysize=cursor.arraysize)
     if default_type == oracledb.DB_TYPE_BLOB:

@@ -38,6 +38,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+logger.info("OraFlux Studio API starting up...")
+
 # In-memory stores
 session_manager = SessionManager()
 oracle_service = OracleService(session_manager)
@@ -60,9 +62,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Ephemeral Oracle Report Viewer API",
+    title="OraFlux Studio API",
     description="An API to run ad-hoc, ephemeral SELECT queries on Oracle.",
-    version="1.0.0",
+    version="1.1.0",
     lifespan=lifespan,
 )
 
@@ -75,17 +77,31 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- Health Check Endpoints ---
+@app.get("/", tags=["Health Check"])
+async def read_root():
+    """A welcome message for the API root."""
+    return {"message": "Welcome to OraFlux Studio API"}
 
-@app.post("/session/start", response_model=SessionStartResponse)
+@app.get("/health", tags=["Health Check"])
+async def health_check():
+    """A simple health check endpoint to verify the service is running."""
+    return {"status": "ok"}
+
+
+# --- API Endpoints ---
+@app.post("/session/start", response_model=SessionStartResponse, tags=["Session"])
 async def start_session():
     """Starts a new ephemeral session and returns a unique session ID."""
+    logger.info("Received request for /session/start")
     session_id = session_manager.create_session()
     return SessionStartResponse(sessionId=session_id)
 
 
-@app.post("/oracle/connect", response_model=StatusResponse)
+@app.post("/oracle/connect", response_model=StatusResponse, tags=["Session"])
 async def connect_to_oracle(req: OracleConnectRequest):
     """Creates a connection pool for the given session and credentials."""
+    logger.info(f"[{req.sessionId}] Received request for /oracle/connect")
     try:
         await oracle_service.create_pool(req)
         return StatusResponse(ok=True)
@@ -94,9 +110,10 @@ async def connect_to_oracle(req: OracleConnectRequest):
         raise HTTPException(status_code=400, detail=f"Oracle connection failed: {e}")
 
 
-@app.post("/query/run", response_model=QueryRunResponse)
+@app.post("/query/run", response_model=QueryRunResponse, tags=["Query"])
 async def run_query(req: QueryRunRequest):
     """Runs a SELECT query with server-side pagination."""
+    logger.info(f"[{req.sessionId}] Received request for /query/run")
     if not is_select_only_query(req.sql):
         raise HTTPException(status_code=403, detail="Only SELECT queries are allowed.")
 
@@ -115,9 +132,10 @@ async def run_query(req: QueryRunRequest):
         raise HTTPException(status_code=400, detail=f"Query execution failed: {e}")
 
 
-@app.post("/query/aggregate", response_model=AggregateQueryResponse)
+@app.post("/query/aggregate", response_model=AggregateQueryResponse, tags=["Query"])
 async def run_aggregate_query(req: AggregateQueryRequest):
     """Runs an aggregation query to generate chart data."""
+    logger.info(f"[{req.sessionId}] Received request for /query/aggregate")
     if not is_select_only_query(req.baseSql):
         raise HTTPException(
             status_code=403, detail="Only SELECT queries are allowed in the base SQL."
@@ -140,9 +158,10 @@ async def run_aggregate_query(req: AggregateQueryRequest):
         raise HTTPException(status_code=400, detail=f"Aggregation failed: {e}")
 
 
-@app.post("/query/drilldown", response_model=QueryRunResponse)
+@app.post("/query/drilldown", response_model=QueryRunResponse, tags=["Query"])
 async def run_drilldown_query(req: DrilldownRequest):
     """Runs a paginated query to get the raw data for a chart segment."""
+    logger.info(f"[{req.originalRequest.sessionId}] Received request for /query/drilldown")
     if not is_select_only_query(req.originalRequest.baseSql):
         raise HTTPException(
             status_code=403, detail="Only SELECT queries are allowed in the base SQL."
@@ -165,8 +184,9 @@ async def run_drilldown_query(req: DrilldownRequest):
         raise HTTPException(status_code=400, detail=f"Drilldown query execution failed: {e}")
 
 
-@app.post("/session/close", response_model=StatusResponse)
+@app.post("/session/close", response_model=StatusResponse, tags=["Session"])
 async def close_session(req: SessionCloseRequest, background_tasks: BackgroundTasks):
     """Closes the connection pool for a session."""
+    logger.info(f"[{req.sessionId}] Received request for /session/close")
     background_tasks.add_task(session_manager.close_session, req.sessionId)
     return StatusResponse(ok=True)

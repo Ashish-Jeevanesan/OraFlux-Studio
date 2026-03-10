@@ -19,8 +19,18 @@ class Session:
     last_accessed: float = field(default_factory=time.time)
 
 class SessionManager:
-    """Manages ephemeral sessions and their resources (e.g., connection pools)."""
+    """
+    Manages the lifecycle of all user sessions in the application.
 
+    This class is the core of the application's state management. Since the app is
+    ephemeral, no session data is persisted to disk. The SessionManager holds an
+    in-memory dictionary mapping a unique `sessionId` (UUID) to a `Session` object.
+    Each `Session` object contains the Oracle connection pool created for that user,
+    allowing subsequent API calls to reuse the same pool.
+
+    It is also responsible for running a background "sweeper" task that periodically
+    cleans up and closes connection pools for sessions that have been idle for too long.
+    """
     def __init__(self):
         self._sessions: Dict[UUID, Session] = {}
 
