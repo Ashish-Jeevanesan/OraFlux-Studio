@@ -162,27 +162,37 @@ pytest
 - **SSL/TCPS Connection**: To connect to an Oracle database using SSL/TCPS, check the "Use SSL/TCPS" box. This requires the backend to have access to the Oracle wallet files (`tnsnames.ora`, `sqlnet.ora`, `cwallet.sso`, etc.). For a Docker-based setup, you would need to modify the `backend/Dockerfile` to copy the wallet files into the image and set the `TNS_ADMIN` environment variable.
 
 ---
-## Deployment to Vercel
+## Deployment
 
-The frontend of this project is configured for easy deployment to [Vercel](https://vercel.com).
+This project is designed to be deployed in two parts: a live backend service and a frontend hosted on a static hosting provider like Vercel.
 
-### Pre-requisite: Deploy Your Backend
+### 1. Backend (FastAPI on Render)
 
-Before deploying the frontend to Vercel, your FastAPI backend **must be running on a publicly accessible URL** (e.g., using a service like Render, Heroku, or a cloud provider). Vercel will need to forward API requests from the browser to this live backend URL.
+The stateful FastAPI backend cannot be hosted on a serverless platform like Vercel. A platform designed for long-running services is required. We recommend **Render** for its simplicity and Docker support.
 
-### Vercel Deployment Steps
+1.  **Sign up:** Go to [render.com](https://render.com) and create an account (you can sign up with GitHub).
+2.  **New Web Service:** From the dashboard, click **New +** > **Web Service**.
+3.  **Import Repository:** Connect your GitHub and select the `Ashish-Jeevanesan/OraFlux-Studio` repository.
+4.  **Configure Service:**
+    *   Give your service a unique **Name** (e.g., `oraflux-studio-backend`).
+    *   Set the **Root Directory** to `./backend`.
+    *   Set the **Environment** to `Docker`.
+    *   Choose an **Instance Type** (the free tier is sufficient).
+5.  **Create Service:** Click **Create Web Service**.
+
+Render will build the `Dockerfile` from the `/backend` directory and deploy your API. Once complete, Render will provide a public URL for your service (e.g., `https://oraflux-studio-backend.onrender.com`). **Copy this URL.**
+
+### 2. Frontend (Angular on Vercel)
 
 1.  **Sign up and Log in:** Go to [vercel.com](https://vercel.com) and create an account.
-2.  **Create a New Project:** From your Vercel dashboard, click **Add New...** > **Project**.
-3.  **Import Git Repository:**
-    *   Connect your GitHub account.
-    *   Select your `Ashish-Jeevanesan/OraFlux-Studio` repository and click **Import**.
+2.  **New Project:** From your dashboard, click **Add New...** > **Project**.
+3.  **Import Repository:** Connect your GitHub and select the `Ashish-Jeevanesan/OraFlux-Studio` repository.
 4.  **Configure Project:**
-    *   **IMPORTANT:** Vercel will auto-detect the Angular framework. **Do not change the "Root Directory" setting.** Leave it as the default (`/`). The `vercel.json` file in the repository is configured to handle the monorepo structure correctly.
+    *   **IMPORTANT:** Vercel will auto-detect the Angular framework. **Do not change the "Root Directory" setting.** Leave it as the default (`/`). The `vercel.json` file handles the monorepo structure.
     *   Expand the **Environment Variables** section.
-    *   Add the following variable:
+    *   Add the following variable, pasting the URL you copied from Render:
         *   **Name:** `BACKEND_API_URL`
-        *   **Value:** `https://your-live-backend-url.com` (Replace this with the actual public URL of your deployed FastAPI backend).
+        *   **Value:** `https://oraflux-studio-backend.onrender.com` (Replace with your actual Render URL).
 5.  **Deploy:** Click the **Deploy** button.
 
-Vercel will now build and deploy your application. The `vercel.json` configuration will automatically handle proxying any API requests from the frontend to your live backend service.
+Your OraFlux Studio is now live. The Vercel-hosted frontend will automatically proxy all API requests to your Render-hosted backend.
