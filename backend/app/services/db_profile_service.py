@@ -25,9 +25,8 @@ class OracleProfile:
 class DbProfileService:
     """Loads and serves backend-managed Oracle connection profiles."""
 
-    def __init__(self, config_path: Optional[str] = None):
-        default_path = Path(__file__).resolve().parent.parent / "config" / "db_profiles.properties"
-        self._config_path = Path(config_path or os.getenv("DB_PROFILES_FILE", str(default_path)))
+    def __init__(self):
+        # We will determine the path to load in the _load_profiles method
         self._profiles: Dict[str, OracleProfile] = {}
         self._load_profiles()
 
@@ -40,25 +39,40 @@ class DbProfileService:
         return self._profiles[alias]
 
     def _load_profiles(self) -> None:
-        if not self._config_path.exists():
+        config_dir = Path(__file__).resolve().parent.parent / "config"
+        local_path = config_dir / "db_profiles.properties"
+        template_path = config_dir / "db_profiles.properties.template"
+        
+        path_to_load = None
+        if local_path.exists():
+            path_to_load = local_path
+        elif template_path.exists():
+            path_to_load = template_path
+            logger.warning("Local 'db_profiles.properties' not found. Using template file as a fallback.")
+        
+        if not path_to_load:
             raise FileNotFoundError(
-                f"Profile config file not found: {self._config_path}. "
-                "Create it or set DB_PROFILES_FILE."
+                f"Neither 'db_profiles.properties' nor 'db_profiles.properties.template' found in {config_dir}."
             )
 
         parser = configparser.ConfigParser()
-        parser.read(self._config_path, encoding="utf-8")
+        parser.read(path_to_load, encoding="utf-8")
 
         loaded: Dict[str, OracleProfile] = {}
         for alias in parser.sections():
             section = parser[alias]
+            
+            password = section.get("password", "")
+            # Skip profiles in the template file that have placeholder passwords
+            if password == "<YOUR_PASSWORD>":
+                logger.warning(f"Skipping profile [{alias}] from template file due to placeholder password.")
+                continue
 
             host = section.get("host", "").strip()
             port = int(section.get("port", "1521"))
             service_name = section.get("service_name", section.get("serviceName", "")).strip() or None
             sid = section.get("sid", "").strip() or None
             user = section.get("user", "").strip()
-            password = section.get("password", "")
             ssl = section.getboolean("ssl", fallback=False)
             label = section.get("label", "").strip() or None
 
@@ -66,8 +80,6 @@ class DbProfileService:
                 raise ValueError(f"Profile [{alias}] must define host.")
             if not user:
                 raise ValueError(f"Profile [{alias}] must define user.")
-            if not password:
-                raise ValueError(f"Profile [{alias}] must define password.")
             if not service_name and not sid:
                 raise ValueError(f"Profile [{alias}] must define either service_name or sid.")
 
@@ -84,4 +96,4 @@ class DbProfileService:
             )
 
         self._profiles = loaded
-        logger.info("Loaded %d DB profile(s) from %s", len(self._profiles), self._config_path)
+        logger.info("Loaded %d DB profile(s) from %s", len(self._profiles), path_to_load)

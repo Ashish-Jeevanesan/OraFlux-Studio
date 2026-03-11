@@ -10,6 +10,7 @@
 node_modules/
 /frontend/node_modules/
 /backend/venv/
+/backend/app/config/db_profiles.properties
 
 # Build output
 dist/

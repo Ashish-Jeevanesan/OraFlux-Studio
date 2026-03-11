@@ -4,7 +4,7 @@ host = SL80ORA03-D
 port = 1522
 sid = ODCDEV
 user = GLOBUS_APP
-password = App$74335mig
+password = <YOUR_PASSWORD>
 ssl = false
 
 [Test_DB]
@@ -13,7 +13,14 @@ host = gmi-test-rw.globusone.db
 port = 1521
 service_name = GMIONETEST.wlsokenprddb.wlsokenprdvcn.oraclevcn.com
 user = globus_app
-password = EvFd_2pDF_hda
+password = <YOUR_PASSWORD>
 ssl = false
 
-#codex resume 019cd859-b9a3-75f0-ad55-b68f96ddbdc3
+[Stage_DB]
+label = Stage Service
+host = gmi-stage-ro.globusone.db
+port = 1521
+service_name = GMIONESTG.wlsokenprddb.wlsokenprdvcn.oraclevcn.com
+user = GLOBUS_MNT_VIEW
+password = <YOUR_PASSWORD>
+ssl = false
