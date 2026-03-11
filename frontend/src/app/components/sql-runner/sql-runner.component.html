@@ -13,9 +13,14 @@
     <div class="error-message" *ngIf="errorMessage">
       {{ errorMessage }}
     </div>
-
   </mat-card-content>
   <mat-card-actions>
+    <button mat-stroked-button 
+            color="accent" 
+            (click)="generateReport.emit()" 
+            [disabled]="dataSource.data.length === 0">
+      View Summary Report
+    </button>
     <button mat-raised-button color="primary" (click)="runQuery()" [disabled]="isLoading || !sqlQuery">
       <span *ngIf="!isLoading">Run Query</span>
       <mat-spinner *ngIf="isLoading" diameter="20"></mat-spinner>
@@ -31,18 +36,21 @@
       </span>
     </div>
 
-    <mat-table [dataSource]="dataSource">
-      <!-- Dynamic column generation -->
-      <ng-container *ngFor="let col of columns; let i = index" [matColumnDef]="col.name">
-        <mat-header-cell *matHeaderCellDef>{{ col.name }} ({{col.type}})</mat-header-cell>
-        <mat-cell *matCellDef="let row">{{ getCellValue(row, i) }}</mat-cell>
-      </ng-container>
+    <div class="results-table-container">
+      <mat-table [dataSource]="dataSource">
+        <!-- Dynamic column generation -->
+        <ng-container *ngFor="let col of columns; let i = index" [matColumnDef]="col.name">
+          <mat-header-cell *matHeaderCellDef>{{ col.name }} ({{col.type}})</mat-header-cell>
+          <mat-cell *matCellDef="let row">{{ getCellValue(row, i) }}</mat-cell>
+        </ng-container>
 
-      <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
-      <mat-row *matRowDef="let row; columns: displayedColumns;"></mat-row>
-    </mat-table>
+        <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+        <mat-row *matRowDef="let row; columns: displayedColumns;"></mat-row>
+      </mat-table>
+    </div>
 
     <mat-paginator
+      *ngIf="dataSource.data.length > 0"
       [length]="totalRows"
       [pageSize]="pageSize"
       [pageSizeOptions]="pageSizeOptions"

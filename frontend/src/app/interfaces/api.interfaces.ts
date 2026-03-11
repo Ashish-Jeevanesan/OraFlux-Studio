@@ -90,6 +90,17 @@ export interface DrilldownRequest {
     pageSize: number;
 }
 
+export interface IntelligentSummaryRequest {
+  sessionId: string;
+  detailSql: string;
+}
+
+export interface ReportDetailRequest {
+  sessionId: string;
+  baseSql: string;
+  selectedMonth: string;
+}
+
 
 // --- API Response Payloads ---
 
@@ -110,4 +121,10 @@ export interface AggregateQueryResponse {
   columns: {name: 'X' | 'Y'}[];
   rows: (string | number)[][];
   executionMs: number;
+}
+
+export interface SummaryReportResponse {
+  detail: QueryRunResponse;
+  summary: QueryRunResponse;
+  title?: string;
 }

@@ -11,6 +11,7 @@ from .services.session_manager import SessionManager
 from .services.oracle_driver import initialize_oracle_client
 from .services.oracle_service import OracleService
 from .services.db_profile_service import DbProfileService
+from .services import intelligent_summary_service
 from .services.sql_builder import (
     build_aggregate_sql,
     build_paginated_sql,
@@ -29,6 +30,9 @@ from .models import (
     DrilldownRequest,
     SessionCloseRequest,
     StatusResponse,
+    IntelligentSummaryRequest,
+    SummaryReportResponse,
+    ReportDetailRequest,
 )
 
 # Configure logging
@@ -134,6 +138,7 @@ async def run_query(req: QueryRunRequest):
         raise HTTPException(status_code=403, detail="Only SELECT queries are allowed.")
 
     paginated_sql, bind_vars = build_paginated_sql(req)
+    logger.info(f"[{req.sessionId}] Executing paginated query: {paginated_sql}")
 
     try:
         result = await oracle_service.execute_query(
@@ -142,6 +147,8 @@ async def run_query(req: QueryRunRequest):
             binds=bind_vars,
             timeout_sec=req.timeoutSec,
         )
+        num_rows = len(result.get('rows', []))
+        logger.info(f"[{req.sessionId}] Query returned {num_rows} rows.")
         return QueryRunResponse(**result)
     except Exception as e:
         logger.error(f"[{req.sessionId}] Query failed: {e}")
@@ -159,6 +166,8 @@ async def run_aggregate_query(req: AggregateQueryRequest):
 
     try:
         agg_sql, bind_vars = build_aggregate_sql(req)
+        logger.info(f"[{req.sessionId}] Executing aggregate query: {agg_sql}")
+        
         result = await oracle_service.execute_query(
             session_id=req.sessionId,
             sql=agg_sql,
@@ -166,6 +175,10 @@ async def run_aggregate_query(req: AggregateQueryRequest):
             timeout_sec=req.timeoutSec,
             is_aggregation=True,
         )
+        
+        num_rows = len(result.get('rows', []))
+        logger.info(f"[{req.sessionId}] Aggregation query returned {num_rows} rows.")
+
         return AggregateQueryResponse(**result)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -185,6 +198,7 @@ async def run_drilldown_query(req: DrilldownRequest):
 
     try:
         drilldown_sql, bind_vars = build_drilldown_sql(req)
+        logger.info(f"[{req.originalRequest.sessionId}] Executing drilldown query: {drilldown_sql}")
         
         result = await oracle_service.execute_query(
             session_id=req.originalRequest.sessionId,
@@ -192,12 +206,98 @@ async def run_drilldown_query(req: DrilldownRequest):
             binds=bind_vars,
             timeout_sec=req.originalRequest.timeoutSec,
         )
+
+        num_rows = len(result.get('rows', []))
+        logger.info(f"[{req.originalRequest.sessionId}] Drilldown query returned {num_rows} rows.")
+
         # We need to manually add the page to the result for the dialog paginator
         result['pageInfo']['page'] = req.page
         return QueryRunResponse(**result)
     except Exception as e:
         logger.error(f"[{req.originalRequest.sessionId}] Drilldown query failed: {e}")
         raise HTTPException(status_code=400, detail=f"Drilldown query execution failed: {e}")
+
+
+@app.post("/query/intelligent-summary", response_model=SummaryReportResponse, tags=["Query"])
+async def run_intelligent_summary(req: IntelligentSummaryRequest):
+    """
+    Analyzes a detail query, generates a relevant summary query, and runs both.
+    """
+    logger.info(f"[{req.sessionId}] Received request for /query/intelligent-summary")
+    
+    if not is_select_only_query(req.detailSql):
+        raise HTTPException(status_code=403, detail="Only SELECT queries are allowed.")
+
+    try:
+        # 1. Generate the summary SQL and title based on the detail query
+        summary_sql, report_title = intelligent_summary_service.generate_summary_sql(req.detailSql)
+        logger.info(f"[{req.sessionId}] Generated Summary SQL: {summary_sql}")
+
+        # 2. Run both queries concurrently
+        detail_result, summary_result = await asyncio.gather(
+            oracle_service.execute_query(
+                session_id=req.sessionId,
+                sql=req.detailSql,
+                binds={},
+                timeout_sec=120,
+            ),
+            oracle_service.execute_query(
+                session_id=req.sessionId,
+                sql=summary_sql,
+                binds={},
+                timeout_sec=120,
+            )
+        )
+
+        return SummaryReportResponse(
+            detail=QueryRunResponse(**detail_result),
+            summary=QueryRunResponse(**summary_result),
+            title=report_title
+        )
+    except Exception as e:
+        logger.error(f"[{req.sessionId}] Intelligent summary failed: {e}")
+        raise HTTPException(status_code=400, detail=f"Intelligent summary failed: {e}")
+
+
+@app.post("/query/report-detail-for-month", response_model=QueryRunResponse, tags=["Query"])
+async def get_report_detail_for_month(req: ReportDetailRequest):
+    """
+    Fetches the detail rows for a specific month from a base query.
+    """
+    logger.info(f"[{req.sessionId}] Received request for report detail for month: {req.selectedMonth}")
+
+    if not is_select_only_query(req.baseSql):
+        raise HTTPException(status_code=403, detail="Only SELECT queries are allowed.")
+
+    try:
+        # To find the date column to filter on, we must parse the result columns of the base query
+        result_columns = intelligent_summary_service._get_result_columns(req.baseSql)
+        date_col = intelligent_summary_service._find_primary_date_column(result_columns)
+
+        if not date_col:
+            raise HTTPException(status_code=400, detail="Could not determine date column for filtering.")
+
+        # Construct the filtered query
+        # NOTE: This is a simplified WHERE clause addition.
+        filtered_sql = f"""
+            SELECT * FROM (
+                {req.baseSql}
+            )
+            WHERE TO_CHAR(TRUNC({date_col}, 'MM'), 'Mon YYYY') = :selected_month
+        """
+        binds = {"selected_month": req.selectedMonth}
+        logger.info(f"[{req.sessionId}] Executing detail for month query: {filtered_sql}")
+
+        result = await oracle_service.execute_query(
+            session_id=req.sessionId,
+            sql=filtered_sql,
+            binds=binds,
+            timeout_sec=120,
+        )
+        return QueryRunResponse(**result)
+    except Exception as e:
+        logger.error(f"[{req.sessionId}] Report detail query failed: {e}")
+        raise HTTPException(status_code=400, detail=f"Report detail query failed: {e}")
 
 
 @app.post("/session/close", response_model=StatusResponse, tags=["Session"])

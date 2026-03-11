@@ -39,6 +39,7 @@ import { QueryRunResponse, ColumnInfo } from '../../interfaces/api.interfaces';
 })
 export class SqlRunnerComponent {
   @Output() querySuccess = new EventEmitter<{ sql: string, columns: ColumnInfo[] }>();
+  @Output() generateReport = new EventEmitter<void>();
 
   sqlQuery = 'SELECT * FROM t501_order';
   filterLast5Years = true;

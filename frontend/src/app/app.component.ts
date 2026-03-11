@@ -15,6 +15,7 @@ import { ConnectionFormComponent } from './components/connection-form/connection
 import { SqlRunnerComponent } from './components/sql-runner/sql-runner.component';
 import { ReportBuilderComponent } from './components/report-builder/report-builder.component';
 import { ChartSuggestionsComponent } from './components/chart-suggestions/chart-suggestions.component';
+import { SummaryReportComponent } from './components/summary-report/summary-report.component';
 import { SessionService } from './services/session.service';
 import { ColumnInfo, ChartConfig } from './interfaces/api.interfaces';
 
@@ -37,6 +38,7 @@ const GITHUB_ICON = `
     SqlRunnerComponent,
     ReportBuilderComponent,
     ChartSuggestionsComponent,
+    SummaryReportComponent,
   ],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
@@ -44,6 +46,7 @@ const GITHUB_ICON = `
 export class AppComponent implements OnInit, OnDestroy {
   // App state
   isConnected = false;
+  showSummaryReport = false;
   
   // Data passed between components
   lastSuccessfulSql = '';
@@ -98,5 +101,13 @@ export class AppComponent implements OnInit, OnDestroy {
 
   onSuggestionClicked(config: ChartConfig) {
     this.activeSuggestion = config;
+  }
+
+  onGenerateReport() {
+    this.showSummaryReport = true;
+  }
+
+  onBackToQuery() {
+    this.showSummaryReport = false;
   }
 }

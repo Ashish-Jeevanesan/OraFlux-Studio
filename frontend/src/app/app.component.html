@@ -14,19 +14,32 @@
   </div>
 
   <ng-template #mainApp>
-    <div class="main-app-container">
-      <app-sql-runner (querySuccess)="onQuerySuccess($event)"></app-sql-runner>
-      
-      <app-chart-suggestions 
-        [columns]="lastQueryColumns" 
-        (suggestionClick)="onSuggestionClicked($event)">
-      </app-chart-suggestions>
+    <div *ngIf="!showSummaryReport; else summaryReport">
+      <div class="main-app-container">
+        <app-sql-runner 
+          (querySuccess)="onQuerySuccess($event)"
+          (generateReport)="onGenerateReport()">
+        </app-sql-runner>
+        
+        <app-chart-suggestions 
+          [columns]="lastQueryColumns" 
+          (suggestionClick)="onSuggestionClicked($event)">
+        </app-chart-suggestions>
 
-      <app-report-builder 
-        [baseSql]="lastSuccessfulSql" 
-        [columns]="lastQueryColumns"
-        [suggestion]="activeSuggestion">
-      </app-report-builder>
+        <app-report-builder 
+          [baseSql]="lastSuccessfulSql" 
+          [columns]="lastQueryColumns"
+          [suggestion]="activeSuggestion">
+        </app-report-builder>
+      </div>
     </div>
+    <ng-template #summaryReport>
+      <div class="main-app-container">
+        <app-summary-report 
+          [baseSql]="lastSuccessfulSql"
+          (back)="onBackToQuery()">
+        </app-summary-report>
+      </div>
+    </ng-template>
   </ng-template>
 </main>

@@ -12,9 +12,12 @@ import {
   QueryRunRequest,
   AggregateQueryRequest,
   DrilldownRequest,
+  IntelligentSummaryRequest,
+  ReportDetailRequest,
   StatusResponse,
   QueryRunResponse,
   AggregateQueryResponse,
+  SummaryReportResponse,
 } from '../interfaces/api.interfaces';
 
 @Injectable({
@@ -84,6 +87,30 @@ export class ApiService {
     // The sessionId is already inside the originalRequest object in the payload
     return this.http
       .post<QueryRunResponse>(`${this.apiUrl}/query/drilldown`, drilldownDetails)
+      .pipe(catchError(this.handleError));
+  }
+
+  /**
+   * Gets data for an intelligent summary/detail report.
+   */
+  getIntelligentSummaryReport(detailSql: string): Observable<SummaryReportResponse> {
+    const payload: IntelligentSummaryRequest = {
+      detailSql,
+      sessionId: this.sessionService.getSessionId(),
+    };
+    return this.http
+      .post<SummaryReportResponse>(`${this.apiUrl}/query/intelligent-summary`, payload)
+      .pipe(catchError(this.handleError));
+  }
+
+  getReportDetailForMonth(baseSql: string, selectedMonth: string): Observable<QueryRunResponse> {
+    const payload: ReportDetailRequest = {
+      baseSql,
+      selectedMonth,
+      sessionId: this.sessionService.getSessionId(),
+    };
+    return this.http
+      .post<QueryRunResponse>(`${this.apiUrl}/query/report-detail-for-month`, payload)
       .pipe(catchError(this.handleError));
   }
 

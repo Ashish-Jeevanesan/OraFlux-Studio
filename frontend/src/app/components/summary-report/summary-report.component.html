@@ -1,0 +1,62 @@
+<!-- frontend/src/app/components/summary-report/summary-report.component.html -->
+<mat-card>
+  <mat-card-header class="report-header">
+    <button mat-icon-button (click)="back.emit()" aria-label="Back to query runner">
+      <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill="currentColor">
+        <path d="M0 0h24v24H0V0z" fill="none"/>
+        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+      </svg>
+    </button>
+    <mat-card-title>{{ reportTitle }}</mat-card-title>
+  </mat-card-header>
+
+  <mat-card-content>
+    <div *ngIf="isLoadingSummary" class="spinner-container">
+      <mat-spinner diameter="50"></mat-spinner>
+      <p>Generating Report...</p>
+    </div>
+
+    <div *ngIf="errorMessage" class="error-message">
+      {{ errorMessage }}
+    </div>
+
+    <div *ngIf="!isLoadingSummary && !errorMessage">
+      <!-- Summary Section -->
+      <h2 class="report-section-title">Monthly Summary</h2>
+      <p class="report-subtitle">Click a row to see the detail for that month.</p>
+      <table mat-table [dataSource]="summaryDataSource" class="summary-table">
+        <ng-container *ngFor="let col of summaryColumns" [matColumnDef]="col.name">
+          <th mat-header-cell *matHeaderCellDef>{{ col.name }}</th>
+          <td mat-cell *matCellDef="let row">{{ row[col.name] }}</td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="summaryDisplayedColumns"></tr>
+        <tr mat-row class="summary-row" (click)="onMonthClick(row)" *matRowDef="let row; columns: summaryDisplayedColumns;"></tr>
+      </table>
+
+      <!-- Detail Section -->
+      <div *ngIf="selectedMonth">
+        <h2 class="report-section-title">Detail for {{ selectedMonth }}</h2>
+        
+        <div *ngIf="isLoadingDetail" class="spinner-container">
+          <mat-spinner diameter="40"></mat-spinner>
+        </div>
+
+        <div *ngIf="!isLoadingDetail && detailDataSource.data.length > 0" class="detail-table-container">
+          <table mat-table [dataSource]="detailDataSource" matSort>
+            <ng-container *ngFor="let col of detailColumns" [matColumnDef]="col.name">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ col.name }}</th>
+              <td mat-cell *matCellDef="let row">{{ row[col.name] }}</td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="detailDisplayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: detailDisplayedColumns;"></tr>
+          </table>
+        </div>
+        <div *ngIf="!isLoadingDetail && detailDataSource.data.length === 0" class="no-detail-data">
+          <p>No detail data found for this month.</p>
+        </div>
+      </div>
+    </div>
+  </mat-card-content>
+</mat-card>

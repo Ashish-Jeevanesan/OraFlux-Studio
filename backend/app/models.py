@@ -140,3 +140,18 @@ class DrilldownRequest(BaseModel):
 # /session/close
 class SessionCloseRequest(BaseModel):
     sessionId: UUID
+
+# /query/intelligent-summary
+class IntelligentSummaryRequest(BaseModel):
+    sessionId: UUID
+    detailSql: str
+
+class SummaryReportResponse(BaseModel):
+    detail: QueryRunResponse
+    summary: QueryRunResponse
+    title: Optional[str] = None
+
+class ReportDetailRequest(BaseModel):
+    sessionId: UUID
+    baseSql: str
+    selectedMonth: str

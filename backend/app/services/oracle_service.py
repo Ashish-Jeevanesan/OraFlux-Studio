@@ -3,7 +3,7 @@ import asyncio
 import logging
 import time
 from uuid import UUID
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 import oracledb
 
@@ -48,6 +48,40 @@ class OracleService:
     def __init__(self, session_manager: SessionManager, db_profile_service: DbProfileService):
         self._session_manager = session_manager
         self._db_profile_service = db_profile_service
+
+    async def get_table_schemas(self, session_id: UUID, table_names: List[str]) -> Dict[str, List[Dict[str, Any]]]:
+        """Fetches schema information for a list of tables."""
+        if not table_names:
+            return {}
+
+        # Create a list of bind variables for the IN clause
+        bind_vars = {f"t{i}": name.upper() for i, name in enumerate(table_names)}
+        in_clause = ", ".join(f":{bv}" for bv in bind_vars)
+
+        sql = f"""
+            SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, NULLABLE
+            FROM ALL_TAB_COLUMNS
+            WHERE TABLE_NAME IN ({in_clause})
+            ORDER BY TABLE_NAME, COLUMN_ID
+        """
+
+        logger.info(f"[{session_id}] Fetching schemas for tables: {table_names}")
+        
+        # We can reuse the existing query execution logic
+        result = await self.execute_query(session_id, sql, bind_vars, timeout_sec=30)
+        
+        schemas = {}
+        for row in result["rows"]:
+            table_name, col_name, data_type, nullable = row
+            if table_name not in schemas:
+                schemas[table_name] = []
+            schemas[table_name].append({
+                "name": col_name,
+                "type": data_type,
+                "nullable": nullable == 'Y'
+            })
+        
+        return schemas
 
     async def create_pool(self, req: OracleConnectRequest):
         """Creates and registers an Oracle connection pool for a session."""

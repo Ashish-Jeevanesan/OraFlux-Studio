@@ -15,7 +15,8 @@ def is_select_only_query(sql: str) -> bool:
     lines = [line.strip() for line in cleaned_sql.splitlines()]
     first_meaningful_line = next((line for line in lines if line and not line.startswith("--")), "")
     
-    return first_meaningful_line.lower().startswith("select")
+    first_word = first_meaningful_line.lower().split()[0] if first_meaningful_line else ""
+    return first_word in ("select", "with")
 
 def build_paginated_sql(req: QueryRunRequest) -> Tuple[str, Dict[str, Any]]:
     """Wraps the user's SQL with Oracle's pagination clause."""

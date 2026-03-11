@@ -174,7 +174,8 @@ This file logs the automated development and verification process for the Epheme
       - Auto-detects Windows Instant Client path:
         - `C:\Program Files\oracle\instantclient_21_20`
       - Auto-detects default network config directory:
-        - `C:\Program Files\oracle\instantclient_21_20\network\admin`
+        - `C:\Program Files\oracle\instantclient_21_20
+Network\admin`
       - Prepends Instant Client path to `PATH` before calling `oracledb.init_oracle_client(...)`.
       - Can optionally fail fast with `ORACLE_REQUIRE_THICK_MODE=true`.
 
@@ -185,3 +186,32 @@ This file logs the automated development and verification process for the Epheme
     - Backend successfully initialized Thick mode using the local Instant Client installation.
     - Database connection succeeded.
     - Query execution succeeded against the Oracle environment requiring network encryption.
+
+## 10. Intelligent Summary Report and Advanced Debugging
+
+- **Initial UI Bug Fixes:**
+    - Fixed a UI rendering issue in the SQL Runner where table text was garbled and unreadable. This was resolved by targeting specific Angular Material CSS classes (`.mat-mdc-cell`) and controlling text overflow.
+    - Fixed a recurring layout issue where wide tables would stretch the entire page, by wrapping the `mat-table` elements in a container with `width: 100%` and `overflow: auto`.
+- **Intelligent Summary Report Feature:**
+    - **Goal:** Implement a feature to automatically generate a summary report based on the user's detail query.
+    - **Attempt 1 (Frontend Logic):** A hardcoded summary query was built on the frontend. This was rejected by the user as not being dynamic.
+    - **Attempt 2 (Backend AI-Assisted Plan):** Used the `codebase_investigator` to generate a plan for a backend-driven "intelligent" service.
+    - **Implementation:**
+        - Added `sqlparse` dependency to the backend.
+        - Created `intelligent_summary_service.py` to house the logic.
+        - Created `oracle_service.get_table_schemas` to fetch metadata from the database.
+        - Created a new `/query/intelligent-summary` endpoint in `main.py`.
+    - **Debugging `ORA-00904: invalid identifier`:**
+        - **Problem:** The service initially used heuristics on the base table schemas, but the generated summary query failed because it didn't know the column *aliases* used in the user's `SELECT` statement.
+        - **Fix:** The `intelligent_summary_service` was completely refactored to first parse the `SELECT` list of the user's query to get the final result column names (including aliases). The heuristics for finding date and ID columns were then applied to this result set, making the generated query "alias-aware" and fixing the error.
+- **Interactive Report UX:**
+    - **Goal:** Refactor the summary report page to be interactive.
+    - **Implementation:**
+        - The detail table was removed from the initial view.
+        - A `(click)` handler was added to the summary table rows.
+        - A new backend endpoint (`/query/report-detail-for-month`) was created to fetch detail data for only the selected month.
+        - The frontend was updated to call this endpoint and display the detail data on demand.
+- **Final UI/UX Fixes:**
+    - Report titles were made dynamic based on the tables found in the query.
+    - Client-side sorting (`matSort`) was added to the detail table.
+    - An issue with a "back" button rendering as text instead of an icon was fixed by replacing the font-based `<mat-icon>` with an inline SVG, which was the established pattern for this project.
