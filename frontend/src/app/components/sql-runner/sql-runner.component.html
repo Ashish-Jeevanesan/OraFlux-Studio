@@ -9,7 +9,7 @@
       <mat-label>SQL Query (SELECT only)</mat-label>
       <textarea matInput rows="5" [(ngModel)]="sqlQuery"></textarea>
     </mat-form-field>
-    
+    <mat-checkbox [(ngModel)]="filterLast5Years" class="example-margin">Filter last 5 years (Kindly don't use this withcomplex queries with multiple tables)</mat-checkbox>
     <div class="error-message" *ngIf="errorMessage">
       {{ errorMessage }}
     </div>

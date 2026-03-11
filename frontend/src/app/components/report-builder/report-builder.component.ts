@@ -238,7 +238,14 @@ export class ReportBuilderComponent implements OnChanges {
       tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
       grid: { left: '3%', right: config.y.length > 1 ? '4%' : '10%', bottom: '10%', containLabel: true },
       legend: { data: legendData },
-      xAxis: { type: 'category', data: xValues, axisLabel: { rotate: 30 } },
+      xAxis: {
+        type: 'category',
+        name: config.x.column + (config.type === 'line' && config.granularity ? ` (${config.granularity})` : ''),
+        nameLocation: 'middle', // Position the name in the middle
+        nameGap: 30, // Gap between name and axis line.
+        data: xValues,
+        axisLabel: { rotate: 30 }
+      },
       yAxis: yAxes,
       dataZoom: [{ type: 'inside', start: 0, end: 100 }, { type: 'slider', start: 0, end: 100 }],
       series: series,
