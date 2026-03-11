@@ -113,6 +113,21 @@ If you prefer to run the services directly without Docker.
     ```
     The API will be available at `http://localhost:8000`.
 
+4. **Configure DB profiles (required):**
+   Edit `backend/app/config/db_profiles.properties` and define one or more profiles:
+   ```ini
+   [DEV_ODC]
+   label = ODC Dev
+   host = your-host
+   port = 1521
+   service_name = ORCLPDB1
+   # or: sid = ORCL
+   user = readonly_user
+   password = your_password
+   ssl = false
+   ```
+   The frontend shows `label` (or alias if label is missing) in a dropdown and connects using that alias.
+
 #### Frontend (Angular)
 
 1.  **Navigate to the frontend directory:**
@@ -136,7 +151,7 @@ If you prefer to run the services directly without Docker.
 ## How to Use the Application
 
 1.  **Open the App**: Navigate to `http://localhost:4200`. A new session will be started automatically.
-2.  **Connect**: Enter the Host, Port, Service Name/SID, and your read-only user credentials. Click **Connect**.
+2.  **Connect**: Select a database profile alias from the dropdown and click **Connect**.
 3.  **Run a Query**: If the connection is successful, the SQL Runner will appear. Write a `SELECT` statement and click **Run Query**.
 4.  **View Results**: Results are displayed in a paginated table.
 5.  **Build a Chart**: If the query is successful, the Report Builder will appear below the results. Select a chart type, columns, and an aggregation function, then click **Generate Chart**.

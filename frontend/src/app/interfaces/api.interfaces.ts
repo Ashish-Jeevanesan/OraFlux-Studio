@@ -15,14 +15,24 @@ export interface PageInfo {
 // --- API Request Payloads ---
 
 export interface OracleConnectRequest {
-  host: string;
-  port: number;
+  profileAlias?: string;
+  host?: string;
+  port?: number;
   serviceName?: string;
   sid?: string;
-  user: string;
+  user?: string;
   password?: string;
   ssl: boolean;
   sessionId: string;
+}
+
+export interface OracleProfileSummary {
+  alias: string;
+  label?: string;
+}
+
+export interface OracleProfilesResponse {
+  profiles: OracleProfileSummary[];
 }
 
 export interface QueryRunRequest {

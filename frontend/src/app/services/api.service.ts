@@ -8,6 +8,7 @@ import { environment } from '../../environments/environment';
 import { SessionService } from './session.service';
 import {
   OracleConnectRequest,
+  OracleProfilesResponse,
   QueryRunRequest,
   AggregateQueryRequest,
   DrilldownRequest,
@@ -35,6 +36,15 @@ export class ApiService {
     };
     return this.http
       .post<StatusResponse>(`${this.apiUrl}/oracle/connect`, payload)
+      .pipe(catchError(this.handleError));
+  }
+
+  /**
+   * Gets available backend-managed Oracle profile aliases.
+   */
+  getOracleProfiles(): Observable<OracleProfilesResponse> {
+    return this.http
+      .get<OracleProfilesResponse>(`${this.apiUrl}/oracle/profiles`)
       .pipe(catchError(this.handleError));
   }
 

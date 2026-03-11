@@ -6,8 +6,6 @@ from uuid import UUID, uuid4
 from typing import Dict, Any, Optional
 from dataclasses import dataclass, field
 
-import oracledb
-
 logger = logging.getLogger(__name__)
 IDLE_TIMEOUT_MIN = 15  # Minutes
 
@@ -15,7 +13,7 @@ IDLE_TIMEOUT_MIN = 15  # Minutes
 class Session:
     """Represents an in-memory user session."""
     session_id: UUID
-    pool: Optional[oracledb.AsyncConnectionPool] = None
+    pool: Optional[Any] = None
     last_accessed: float = field(default_factory=time.time)
 
 class SessionManager:
@@ -50,7 +48,7 @@ class SessionManager:
             logger.warning(f"[{session_id}] Attempted to access non-existent session.")
         return session
 
-    def set_pool_for_session(self, session_id: UUID, pool: oracledb.AsyncConnectionPool):
+    def set_pool_for_session(self, session_id: UUID, pool: Any):
         """Attaches a connection pool to a session."""
         session = self.get_session(session_id)
         if session:
@@ -58,7 +56,7 @@ class SessionManager:
             logger.info(f"[{session_id}] Connection pool attached.")
         else:
             # This case might happen in a race condition. Close the orphaned pool.
-            asyncio.create_task(pool.close())
+            pool.close()
             raise ValueError("Session not found. Cannot attach pool.")
 
     async def close_session(self, session_id: UUID):
@@ -66,7 +64,7 @@ class SessionManager:
         session = self._sessions.pop(session_id, None)
         if session and session.pool:
             try:
-                await session.pool.close()
+                await asyncio.to_thread(session.pool.close)
                 logger.info(f"[{session_id}] Session and connection pool closed.")
             except Exception as e:
                 logger.error(f"[{session_id}] Error closing pool: {e}")

@@ -8,7 +8,9 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 
 from .services.session_manager import SessionManager
+from .services.oracle_driver import initialize_oracle_client
 from .services.oracle_service import OracleService
+from .services.db_profile_service import DbProfileService
 from .services.sql_builder import (
     build_aggregate_sql,
     build_paginated_sql,
@@ -18,6 +20,8 @@ from .services.sql_builder import (
 from .models import (
     SessionStartResponse,
     OracleConnectRequest,
+    OracleProfilesResponse,
+    OracleProfileSummary,
     QueryRunRequest,
     QueryRunResponse,
     AggregateQueryRequest,
@@ -39,10 +43,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 logger.info("OraFlux Studio API starting up...")
+initialize_oracle_client()
 
 # In-memory stores
 session_manager = SessionManager()
-oracle_service = OracleService(session_manager)
+db_profile_service = DbProfileService()
+oracle_service = OracleService(session_manager, db_profile_service)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -108,6 +114,16 @@ async def connect_to_oracle(req: OracleConnectRequest):
     except Exception as e:
         logger.error(f"[{req.sessionId}] Connection failed: {e}")
         raise HTTPException(status_code=400, detail=f"Oracle connection failed: {e}")
+
+
+@app.get("/oracle/profiles", response_model=OracleProfilesResponse, tags=["Session"])
+async def list_oracle_profiles():
+    """Lists backend-managed Oracle profile aliases for frontend selection."""
+    profiles = [
+        OracleProfileSummary(alias=p.alias, label=p.label)
+        for p in db_profile_service.list_profiles()
+    ]
+    return OracleProfilesResponse(profiles=profiles)
 
 
 @app.post("/query/run", response_model=QueryRunResponse, tags=["Query"])

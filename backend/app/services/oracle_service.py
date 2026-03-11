@@ -6,9 +6,9 @@ from uuid import UUID
 from typing import Dict, Any
 
 import oracledb
-from oracledb import AsyncConnectionPool
 
 from .session_manager import SessionManager
+from .db_profile_service import DbProfileService
 from ..models import OracleConnectRequest, ColumnInfo, PageInfo
 
 logger = logging.getLogger(__name__)
@@ -45,8 +45,9 @@ def _output_type_handler(cursor, name, default_type, size, precision, scale):
 class OracleService:
     """Handles Oracle database operations for sessions."""
 
-    def __init__(self, session_manager: SessionManager):
+    def __init__(self, session_manager: SessionManager, db_profile_service: DbProfileService):
         self._session_manager = session_manager
+        self._db_profile_service = db_profile_service
 
     async def create_pool(self, req: OracleConnectRequest):
         """Creates and registers an Oracle connection pool for a session."""
@@ -55,28 +56,53 @@ class OracleService:
             raise ValueError("Session not found.")
         if session.pool:
             logger.warning(f"[{req.sessionId}] Pool already exists. Closing old pool.")
-            await session.pool.close()
+            await asyncio.to_thread(session.pool.close)
+
+        if req.profileAlias:
+            profile = self._db_profile_service.get_profile(req.profileAlias)
+            host = profile.host
+            port = profile.port
+            sid = profile.sid
+            service_name = profile.service_name
+            user = profile.user
+            password = profile.password
+            ssl = profile.ssl
+        else:
+            host = req.host
+            port = req.port or 1521
+            sid = req.sid
+            service_name = req.serviceName
+            user = req.user
+            password = req.password
+            ssl = req.ssl
+
+            if not host or not user or not password:
+                raise ValueError("host, user, and password are required when profileAlias is not provided.")
 
         # Construct a full TNS-style DSN to be explicit
-        if req.sid:
-            dsn = f"""(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={req.host})(PORT={req.port}))(CONNECT_DATA=(SID={req.sid})))"""
-        elif req.serviceName:
-            dsn = f"""(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={req.host})(PORT={req.port}))(CONNECT_DATA=(SERVICE_NAME={req.serviceName})))"""
+        if sid:
+            dsn = f"""(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port}))(CONNECT_DATA=(SID={sid})))"""
+        elif service_name:
+            dsn = f"""(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port}))(CONNECT_DATA=(SERVICE_NAME={service_name})))"""
         else:
             raise ValueError("Either serviceName or sid must be provided.")
 
-        logger.info(f"[{req.sessionId}] Attempting to create Oracle pool with DSN='{dsn}', User='{req.user}', SSL={req.ssl}")
+        logger.info(
+            f"[{req.sessionId}] Attempting to create Oracle pool with DSN='{dsn}', "
+            f"User='{user}', SSL={ssl}, ThinMode={oracledb.is_thin_mode()}"
+        )
 
         try:
-            pool: AsyncConnectionPool = oracledb.create_pool_async(
-                user=req.user,
-                password=req.password,
+            pool = await asyncio.to_thread(
+                oracledb.create_pool,
+                user=user,
+                password=password,
                 dsn=dsn,
                 min=1,
                 max=4,
-                # Thin mode is default, but explicitly state for clarity
+                increment=1,
+                timeout=300,
                 disable_oob=True,
-                # Set SSL params if req.ssl is True (requires wallet files)
             )
             self._session_manager.set_pool_for_session(req.sessionId, pool)
             logger.info(f"[{req.sessionId}] Oracle connection pool created for DSN: {dsn}")
@@ -99,34 +125,26 @@ class OracleService:
 
         start_time = time.time()
         try:
-            async with session.pool.acquire() as conn:
-                conn.outputtypehandler = _output_type_handler
-                async with conn.cursor() as cursor:
-                    # Set a timeout on the connection for this specific execution
-                    # call_timeout is in milliseconds
-                    conn.call_timeout = timeout_sec * 1000
-
-                    await cursor.execute(sql, binds)
-                    
-                    if is_aggregation:
-                        rows = await cursor.fetchall()
-                    else:
-                        # Fetch one more than pageSize to check if there are more rows
-                        rows = await cursor.fetchmany(cursor.arraysize)
-
-                    columns = [
-                        ColumnInfo(name=col[0], type=col[1].name.replace('DB_TYPE_', ''))
-                        for col in cursor.description
-                    ]
-
-                    # Log the first 5 rows for inspection
-                    logger.info(f"Query returned {len(rows)} rows. First 5: {rows[:5]}")
+            result = await asyncio.to_thread(
+                self._execute_query_sync,
+                session.pool,
+                sql,
+                binds,
+                timeout_sec,
+                is_aggregation,
+            )
 
         except oracledb.DatabaseError as e:
             error, = e.args
             # ORA-01013: user requested cancel of current operation (timeout)
             if "ORA-01013" in error.message:
                 raise asyncio.TimeoutError(f"Query timed out after {timeout_sec} seconds.")
+            if "DPY-3001" in error.message:
+                raise RuntimeError(
+                    "This Oracle database requires Native Network Encryption/Data Integrity, "
+                    "which needs python-oracledb Thick mode. Configure ORACLE_CLIENT_LIB_DIR "
+                    "for Oracle Instant Client and restart the backend."
+                ) from e
             raise
         except Exception as e:
             logger.error(f"[{session_id}] Query execution error: {e}")
@@ -136,18 +154,45 @@ class OracleService:
 
         execution_ms = (time.time() - start_time) * 1000
 
-        result = {
-            "columns": columns,
-            "rows": rows,
-            "executionMs": round(execution_ms, 2),
-        }
+        result["executionMs"] = round(execution_ms, 2)
 
         if not is_aggregation:
-            page_size = binds.get('lim', 500)
+            rows = result["rows"]
+            page_size = binds.get("lim", 500)
             result["rowCountLimited"] = len(rows) > page_size
             if result["rowCountLimited"]:
-                 result["rows"] = rows[:page_size] # Trim the extra row
-            result["pageInfo"] = PageInfo(page=binds.get('page', 1), pageSize=page_size)
-
+                result["rows"] = rows[:page_size]
+            result["pageInfo"] = PageInfo(page=binds.get("page", 1), pageSize=page_size)
 
         return result
+
+    def _execute_query_sync(
+        self,
+        pool: Any,
+        sql: str,
+        binds: Dict[str, Any],
+        timeout_sec: int,
+        is_aggregation: bool,
+    ) -> Dict[str, Any]:
+        with pool.acquire() as conn:
+            conn.outputtypehandler = _output_type_handler
+            conn.call_timeout = timeout_sec * 1000
+
+            with conn.cursor() as cursor:
+                cursor.execute(sql, binds)
+
+                if is_aggregation:
+                    rows = cursor.fetchall()
+                else:
+                    rows = cursor.fetchmany(cursor.arraysize)
+
+                columns = [
+                    ColumnInfo(name=col[0], type=col[1].name.replace("DB_TYPE_", ""))
+                    for col in cursor.description
+                ]
+
+        logger.info(f"Query returned {len(rows)} rows. First 5: {rows[:5]}")
+        return {
+            "columns": columns,
+            "rows": rows,
+        }

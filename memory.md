@@ -88,3 +88,100 @@ This file logs the automated development and verification process for the Epheme
     - **Attempt 2:** Simplified `vercel.json` to only include the SPA fallback rewrite rule to isolate the issue. **Failed.**
     - **Attempt 3 (Forensic):** Added a `ls -R dist` command to the build script to inspect Vercel's build output. The log revealed the application files were being placed in `dist/browser`.
     - **Attempt 4:** Based on the forensic log, corrected the `outputPath` in `angular.json` to `"dist"` and instructed the user to set the Vercel UI "Output Directory" to `dist/browser`. This was the final, successful solution.
+- **Backend Enhancements:**
+    - Implemented comprehensive logging for all API endpoint calls and application startup events.
+    - Added detailed code comments to all backend services and SQL generation logic for improved clarity and maintainability.
+    - Added `/` (root) and `/health` endpoints for easy service deployment verification.
+    - Fixed a `FileNotFoundError` in Render deployment by ensuring the `logs` directory is created in the Dockerfile.
+    - Fixed a CORS issue on Render by adding the Vercel frontend URL to the `allow_origins` list in `main.py`.
+- **Frontend Enhancements:**
+    - Implemented X and Y axis labels on charts for better readability.
+    - Created and committed a custom `favicon.svg` matching the "OraFlux Studio" theme.
+- **Deployment Instructions Update:**
+    - Updated `README.md` with instructions to point Vercel's `BACKEND_API_URL` to `http://localhost:8000` for local backend testing with a deployed frontend, along with a clear warning about its limitations.
+
+## 8. Database Profile Alias Feature (Backend-Managed Connections)
+
+- **Goal Implemented:**
+    - Reworked Oracle connection flow so database connection details are managed in backend configuration and exposed to frontend as selectable aliases.
+    - Frontend now connects using a selected alias/profile instead of entering host/port/service/user/password manually.
+
+- **Backend Changes:**
+    - Added profile configuration file: `backend/app/config/db_profiles.properties`.
+    - Added new service: `backend/app/services/db_profile_service.py` to:
+        - Load profile entries from properties file.
+        - Validate required keys (`host`, `user`, `password`, and one of `service_name`/`sid`).
+        - Serve profile list and resolve profile by alias.
+    - Extended API models in `backend/app/models.py`:
+        - Added `OracleProfileSummary` and `OracleProfilesResponse`.
+        - Updated `OracleConnectRequest` to support `profileAlias` (while keeping compatibility for direct connection fields).
+    - Added endpoint in `backend/app/main.py`:
+        - `GET /oracle/profiles` returns available aliases (and optional labels) for dropdown rendering.
+    - Updated `backend/app/services/oracle_service.py`:
+        - `create_pool` now supports alias-based resolution via `DbProfileService`.
+        - If `profileAlias` is provided, backend profile credentials are used to build DSN and pool.
+        - Preserved fallback support for direct/manual connection payloads.
+
+- **Frontend Changes:**
+    - Updated connection UI:
+        - `frontend/src/app/components/connection-form/connection-form.component.ts/.html/.scss`
+        - Removed manual credential inputs and added profile dropdown (`mat-select`).
+        - Added profile loading state and empty/error handling.
+    - Updated API service:
+        - `frontend/src/app/services/api.service.ts` now includes `getOracleProfiles()` for `GET /oracle/profiles`.
+    - Updated interfaces:
+        - `frontend/src/app/interfaces/api.interfaces.ts` now includes profile response types and alias-capable connect payload.
+
+- **Tests and Verification:**
+    - Added backend unit tests for profile loading:
+        - `backend/tests/test_db_profile_service.py`
+        - fixture: `backend/tests/fixtures/db_profiles_test.properties`
+    - Verified targeted profile tests pass:
+        - `pytest -q tests/test_db_profile_service.py -p no:cacheprovider` -> `2 passed`
+    - Full backend test suite still has pre-existing failures in `tests/test_sql_builder.py` (unrelated to this feature).
+    - Frontend build check in this environment failed with `spawn EPERM` (environment permission issue), not a code-level compile diagnostic.
+
+## 9. Oracle Driver Compatibility Fixes
+
+- **Initial Runtime Failure After Profile-Based Connect:**
+    - Connection attempts began failing with:
+      - `DPY-2053: python-oracledb thin mode cannot be used because thick mode has already been enabled`
+    - Root cause:
+      - The backend was using async Oracle pool APIs (`create_pool_async`) which are thin-mode only.
+      - The running Python process/environment had already enabled Oracle thick mode.
+
+- **Backend Refactor for Driver Compatibility:**
+    - Updated `backend/app/services/oracle_service.py` to stop using async Oracle client APIs.
+    - Reworked pool creation and query execution to use synchronous `python-oracledb` APIs wrapped with `asyncio.to_thread(...)`.
+    - Updated `backend/app/services/session_manager.py` so pool close operations also run safely with thread offloading.
+    - Result:
+      - FastAPI endpoint surface remained async.
+      - Oracle pool/query logic became compatible with both thin and thick mode environments.
+
+- **Follow-Up Query Execution Failure:**
+    - After connection succeeded, query execution failed with:
+      - `DPY-3001: Native Network Encryption and Data Integrity is only supported in python-oracledb thick mode`
+    - Root cause:
+      - The target Oracle database required Native Network Encryption/Data Integrity.
+      - Thin mode cannot support that capability.
+
+- **Thick Mode Initialization Support Added:**
+    - Added new startup helper: `backend/app/services/oracle_driver.py`
+    - Wired startup initialization in `backend/app/main.py` using `initialize_oracle_client()`.
+    - Thick mode initialization behavior:
+      - Uses `ORACLE_CLIENT_LIB_DIR` if provided.
+      - Uses `ORACLE_NET_CONFIG_DIR` or `TNS_ADMIN` if provided.
+      - Auto-detects Windows Instant Client path:
+        - `C:\Program Files\oracle\instantclient_21_20`
+      - Auto-detects default network config directory:
+        - `C:\Program Files\oracle\instantclient_21_20\network\admin`
+      - Prepends Instant Client path to `PATH` before calling `oracledb.init_oracle_client(...)`.
+      - Can optionally fail fast with `ORACLE_REQUIRE_THICK_MODE=true`.
+
+- **Error Handling Improvements:**
+    - Added a clearer backend error when `DPY-3001` occurs so the user sees an actionable message about Thick mode and Instant Client setup instead of a raw driver error.
+
+- **Final Outcome:**
+    - Backend successfully initialized Thick mode using the local Instant Client installation.
+    - Database connection succeeded.
+    - Query execution succeeded against the Oracle environment requiring network encryption.

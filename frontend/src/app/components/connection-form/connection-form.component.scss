@@ -7,11 +7,7 @@
 .connect-form {
   display: flex;
   flex-direction: column;
-  gap: 1rem; // Adjust gap for single column
-}
-
-.ssl-toggle {
-  margin-bottom: 1rem;
+  gap: 1rem;
 }
 
 .error-message {

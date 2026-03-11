@@ -45,18 +45,27 @@ class OrderBy(BaseModel):
 class SessionStartResponse(BaseModel):
     sessionId: UUID
 
+# /oracle/profiles
+class OracleProfileSummary(BaseModel):
+    alias: str
+    label: Optional[str] = None
+
+class OracleProfilesResponse(BaseModel):
+    profiles: List[OracleProfileSummary]
+
 # /oracle/connect
 class OracleConnectRequest(BaseModel):
     sessionId: UUID
-    host: str
-    port: int = 1521
+    profileAlias: Optional[str] = None
+    host: Optional[str] = None
+    port: Optional[int] = 1521
     serviceName: Optional[str] = None
     sid: Optional[str] = None
-    user: str
-    password: str = Field(..., min_length=1)
+    user: Optional[str] = None
+    password: Optional[str] = Field(None, min_length=1)
     ssl: bool = False
 
-    @field_validator('host', 'serviceName', 'sid', 'user')
+    @field_validator('host', 'serviceName', 'sid', 'user', 'profileAlias')
     def disallow_special_chars(cls, v):
         if v and not re.match(r'^[a-zA-Z0-9_.-]+$', v):
             raise ValueError(f"Invalid characters in connection parameter: {v}")
