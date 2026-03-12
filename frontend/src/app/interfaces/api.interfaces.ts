@@ -93,12 +93,14 @@ export interface DrilldownRequest {
 export interface IntelligentSummaryRequest {
   sessionId: string;
   detailSql: string;
+  granularity?: 'month' | 'week' | 'year';
 }
 
 export interface ReportDetailRequest {
   sessionId: string;
   baseSql: string;
-  selectedMonth: string;
+  selectedValue: string;
+  granularity: 'month' | 'week' | 'year';
 }
 
 

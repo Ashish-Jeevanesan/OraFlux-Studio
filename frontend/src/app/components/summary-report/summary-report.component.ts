@@ -6,6 +6,8 @@ import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSort, MatSortModule } from '@angular/material/sort';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { FormsModule } from '@angular/forms';
 
 import { ApiService } from '../../services/api.service';
 import { ColumnInfo } from '../../interfaces/api.interfaces';
@@ -21,6 +23,8 @@ import { ColumnInfo } from '../../interfaces/api.interfaces';
     MatProgressSpinnerModule,
     MatIconModule,
     MatSortModule,
+    MatButtonToggleModule,
+    FormsModule,
   ],
   templateUrl: './summary-report.component.html',
   styleUrls: ['./summary-report.component.scss']
@@ -36,6 +40,7 @@ export class SummaryReportComponent implements OnInit, AfterViewInit {
   errorMessage: string | null = null;
   
   reportTitle = "Summary Report";
+  selectedGranularity: 'month' | 'week' | 'year' = 'month';
 
   // Summary Table
   summaryDataSource = new MatTableDataSource<any>();
@@ -46,7 +51,7 @@ export class SummaryReportComponent implements OnInit, AfterViewInit {
   detailDataSource = new MatTableDataSource<any>();
   detailColumns: ColumnInfo[] = [];
   detailDisplayedColumns: string[] = [];
-  selectedMonth: string | null = null;
+  selectedValue: string | null = null;
 
   constructor(private apiService: ApiService) {}
 
@@ -62,9 +67,9 @@ export class SummaryReportComponent implements OnInit, AfterViewInit {
     this.isLoadingSummary = true;
     this.errorMessage = null;
     this.detailDataSource.data = []; // Clear detail data
-    this.selectedMonth = null;
+    this.selectedValue = null;
 
-    this.apiService.getIntelligentSummaryReport(this.baseSql).subscribe({
+    this.apiService.getIntelligentSummaryReport(this.baseSql, this.selectedGranularity).subscribe({
       next: (response) => {
         if (response.title) {
           this.reportTitle = response.title;
@@ -94,13 +99,13 @@ export class SummaryReportComponent implements OnInit, AfterViewInit {
     });
   }
 
-  onMonthClick(monthRow: any) {
-    const month = monthRow[this.summaryDisplayedColumns[0]];
-    this.selectedMonth = month;
+  onRowClick(row: any) {
+    const value = row[this.summaryDisplayedColumns[0]];
+    this.selectedValue = value;
     this.isLoadingDetail = true;
     this.errorMessage = null;
 
-    this.apiService.getReportDetailForMonth(this.baseSql, month).subscribe({
+    this.apiService.getReportDetail(this.baseSql, value, this.selectedGranularity).subscribe({
       next: (response) => {
         this.detailDataSource.data = response.rows.map(rowArray => {
           const rowObject: { [key: string]: any } = {};

@@ -145,6 +145,7 @@ class SessionCloseRequest(BaseModel):
 class IntelligentSummaryRequest(BaseModel):
     sessionId: UUID
     detailSql: str
+    granularity: str = "month"
 
 class SummaryReportResponse(BaseModel):
     detail: QueryRunResponse
@@ -154,4 +155,5 @@ class SummaryReportResponse(BaseModel):
 class ReportDetailRequest(BaseModel):
     sessionId: UUID
     baseSql: str
-    selectedMonth: str
+    selectedValue: str
+    granularity: str

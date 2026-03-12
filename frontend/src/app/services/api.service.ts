@@ -93,9 +93,10 @@ export class ApiService {
   /**
    * Gets data for an intelligent summary/detail report.
    */
-  getIntelligentSummaryReport(detailSql: string): Observable<SummaryReportResponse> {
+  getIntelligentSummaryReport(detailSql: string, granularity: 'month' | 'week' | 'year' = 'month'): Observable<SummaryReportResponse> {
     const payload: IntelligentSummaryRequest = {
       detailSql,
+      granularity,
       sessionId: this.sessionService.getSessionId(),
     };
     return this.http
@@ -103,14 +104,15 @@ export class ApiService {
       .pipe(catchError(this.handleError));
   }
 
-  getReportDetailForMonth(baseSql: string, selectedMonth: string): Observable<QueryRunResponse> {
+  getReportDetail(baseSql: string, selectedValue: string, granularity: 'month' | 'week' | 'year'): Observable<QueryRunResponse> {
     const payload: ReportDetailRequest = {
       baseSql,
-      selectedMonth,
+      selectedValue,
+      granularity,
       sessionId: this.sessionService.getSessionId(),
     };
     return this.http
-      .post<QueryRunResponse>(`${this.apiUrl}/query/report-detail-for-month`, payload)
+      .post<QueryRunResponse>(`${this.apiUrl}/query/report-detail`, payload)
       .pipe(catchError(this.handleError));
   }
 

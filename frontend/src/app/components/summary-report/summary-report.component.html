@@ -21,9 +21,16 @@
     </div>
 
     <div *ngIf="!isLoadingSummary && !errorMessage">
-      <!-- Summary Section -->
-      <h2 class="report-section-title">Monthly Summary</h2>
-      <p class="report-subtitle">Click a row to see the detail for that month.</p>
+      <h2 class="report-section-title">Summary</h2>
+      <div class="summary-controls">
+        <mat-button-toggle-group [(ngModel)]="selectedGranularity" (change)="generateSummary()" aria-label="Granularity">
+          <mat-button-toggle value="year">Yearly</mat-button-toggle>
+          <mat-button-toggle value="week">Weekly</mat-button-toggle>
+          <mat-button-toggle value="month">Monthly</mat-button-toggle>
+        </mat-button-toggle-group>
+      </div>
+
+      <p class="report-subtitle">Click a row to see the detail for that period.</p>
       <table mat-table [dataSource]="summaryDataSource" class="summary-table">
         <ng-container *ngFor="let col of summaryColumns" [matColumnDef]="col.name">
           <th mat-header-cell *matHeaderCellDef>{{ col.name }}</th>
@@ -31,12 +38,12 @@
         </ng-container>
 
         <tr mat-header-row *matHeaderRowDef="summaryDisplayedColumns"></tr>
-        <tr mat-row class="summary-row" (click)="onMonthClick(row)" *matRowDef="let row; columns: summaryDisplayedColumns;"></tr>
+        <tr mat-row class="summary-row" (click)="onRowClick(row)" *matRowDef="let row; columns: summaryDisplayedColumns;"></tr>
       </table>
 
       <!-- Detail Section -->
-      <div *ngIf="selectedMonth">
-        <h2 class="report-section-title">Detail for {{ selectedMonth }}</h2>
+      <div *ngIf="selectedValue">
+        <h2 class="report-section-title">Detail for {{ selectedValue }}</h2>
         
         <div *ngIf="isLoadingDetail" class="spinner-container">
           <mat-spinner diameter="40"></mat-spinner>

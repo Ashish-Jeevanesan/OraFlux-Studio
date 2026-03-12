@@ -113,20 +113,21 @@ If you prefer to run the services directly without Docker.
     ```
     The API will be available at `http://localhost:8000`.
 
-4. **Configure DB profiles (required):**
-   Edit `backend/app/config/db_profiles.properties` and define one or more profiles:
-   ```ini
-   [DEV_ODC]
-   label = ODC Dev
-   host = your-host
-   port = 1521
-   service_name = ORCLPDB1
-   # or: sid = ORCL
-   user = readonly_user
-   password = your_password
-   ssl = false
-   ```
-   The frontend shows `label` (or alias if label is missing) in a dropdown and connects using that alias.
+4. **Configure DB Profiles (Required):**
+   Connection details are managed by a properties file on the backend to keep credentials secure.
+   
+   - In `backend/app/config/`, you will find `db_profiles.properties.template`. This file is a template that is safe to commit to source control.
+   - To connect to a database, you must first create a **local copy** of this file named `db_profiles.properties` in the same directory (`backend/app/config/`).
+   
+     ```bash
+     # From the backend/app/config/ directory
+     cp db_profiles.properties.template db_profiles.properties
+     ```
+   
+   - Edit your new `db_profiles.properties` file and replace the `<YOUR_PASSWORD>` placeholders with your real, read-only user passwords.
+   - The `db_profiles.properties` file is listed in `.gitignore`, so your local file with credentials will **never** be committed to the repository.
+   
+   The backend will load profiles from your local `db_profiles.properties` file. The frontend shows the `label` (or alias if the label is missing) in a dropdown and connects using that alias.
 
 #### Frontend (Angular)
 

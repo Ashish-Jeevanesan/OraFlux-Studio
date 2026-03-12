@@ -223,17 +223,21 @@ async def run_intelligent_summary(req: IntelligentSummaryRequest):
     """
     Analyzes a detail query, generates a relevant summary query, and runs both.
     """
-    logger.info(f"[{req.sessionId}] Received request for /query/intelligent-summary")
+    logger.info(f"[{req.sessionId}] Received request for /query/intelligent-summary with granularity '{req.granularity}'")
     
     if not is_select_only_query(req.detailSql):
         raise HTTPException(status_code=403, detail="Only SELECT queries are allowed.")
 
     try:
-        # 1. Generate the summary SQL and title based on the detail query
-        summary_sql, report_title = intelligent_summary_service.generate_summary_sql(req.detailSql)
+        # 1. Get table names to fetch schemas
+        table_names = intelligent_summary_service.extract_table_names(req.detailSql)
+        schemas = await oracle_service.get_table_schemas(req.sessionId, table_names)
+
+        # 2. Generate the summary SQL and title
+        summary_sql, report_title = intelligent_summary_service.generate_summary_sql(req.detailSql, schemas, req.granularity)
         logger.info(f"[{req.sessionId}] Generated Summary SQL: {summary_sql}")
 
-        # 2. Run both queries concurrently
+        # 3. Run both queries concurrently
         detail_result, summary_result = await asyncio.gather(
             oracle_service.execute_query(
                 session_id=req.sessionId,
@@ -259,33 +263,43 @@ async def run_intelligent_summary(req: IntelligentSummaryRequest):
         raise HTTPException(status_code=400, detail=f"Intelligent summary failed: {e}")
 
 
-@app.post("/query/report-detail-for-month", response_model=QueryRunResponse, tags=["Query"])
-async def get_report_detail_for_month(req: ReportDetailRequest):
+@app.post("/query/report-detail", response_model=QueryRunResponse, tags=["Query"])
+async def get_report_detail(req: ReportDetailRequest):
     """
-    Fetches the detail rows for a specific month from a base query.
+    Fetches the detail rows for a specific time period (month, week, year) from a base query.
     """
-    logger.info(f"[{req.sessionId}] Received request for report detail for month: {req.selectedMonth}")
+    logger.info(f"[{req.sessionId}] Received request for report detail for {req.granularity}: {req.selectedValue}")
 
     if not is_select_only_query(req.baseSql):
         raise HTTPException(status_code=403, detail="Only SELECT queries are allowed.")
 
     try:
-        # To find the date column to filter on, we must parse the result columns of the base query
-        result_columns = intelligent_summary_service._get_result_columns(req.baseSql)
-        date_col = intelligent_summary_service._find_primary_date_column(result_columns)
+        table_names = intelligent_summary_service.extract_table_names(req.baseSql)
+        schemas = await oracle_service.get_table_schemas(req.sessionId, table_names)
+        date_col = intelligent_summary_service._find_primary_date_column(schemas)
 
         if not date_col:
             raise HTTPException(status_code=400, detail="Could not determine date column for filtering.")
+            
+        granularity_map = {
+            "month": {"trunc": "MM", "format": "Mon YYYY"},
+            "week": {"trunc": "IW", "format": 'YYYY - "WW"'},
+            "year": {"trunc": "YYYY", "format": "YYYY"},
+        }
+        
+        if req.granularity not in granularity_map:
+            raise ValueError(f"Unsupported granularity: {req.granularity}")
+            
+        trunc_format = granularity_map[req.granularity]["trunc"]
+        char_format = granularity_map[req.granularity]["format"]
 
-        # Construct the filtered query
-        # NOTE: This is a simplified WHERE clause addition.
         filtered_sql = f"""
             SELECT * FROM (
                 {req.baseSql}
             )
-            WHERE TO_CHAR(TRUNC({date_col}, 'MM'), 'Mon YYYY') = :selected_month
+            WHERE TO_CHAR(TRUNC({date_col}, '{trunc_format}'), '{char_format}') = :selected_value
         """
-        binds = {"selected_month": req.selectedMonth}
+        binds = {"selected_value": req.selectedValue}
         logger.info(f"[{req.sessionId}] Executing detail for month query: {filtered_sql}")
 
         result = await oracle_service.execute_query(

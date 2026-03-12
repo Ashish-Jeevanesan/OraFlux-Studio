@@ -93,21 +93,27 @@ export class SqlRunnerComponent {
 
     const query = this.sqlQuery.trim();
     const upperCaseQuery = query.toUpperCase();
-    
-    // Naive check for table name
-    const tableNameMatch = upperCaseQuery.match(/FROM\s+([^\s;]+)/);
-    const tableName = tableNameMatch ? tableNameMatch[1] : '';
 
+    // Heuristic: Find a suitable date column from a prioritized list
+    const dateColumnCandidates = [
+      'C501_ORDER_DATE', 
+      'C501_LAST_UPDATED_DATE', 
+      'CREATED_DATE', 
+      'UPDATE_DATE',
+      'LAST_UPDATED'
+    ];
+    
     let dateColumn: string | null = null;
-    if (tableName.toUpperCase() === 'T501_ORDER') {
-      dateColumn = 'C501_ORDER_DATE';
-    } else if (tableName) {
-      // A generic fallback as requested. This is a best-effort guess.
-      dateColumn = 'C501_LAST_UPDATED_DATE'; 
+    for (const candidate of dateColumnCandidates) {
+      if (upperCaseQuery.includes(candidate)) {
+        dateColumn = candidate;
+        break;
+      }
     }
 
     if (!dateColumn) {
-      return query; // Cannot determine date column
+      this.snackBar.open("Could not automatically determine a date column for the 5-year filter.", "Warning", { duration: 3000 });
+      return query; // Return original query if no suitable column is found
     }
 
     const fiveYearsAgo = new Date();
@@ -123,22 +129,17 @@ export class SqlRunnerComponent {
     let modifiedQuery = query;
 
     if (whereIndex > -1) {
-      // If there is a WHERE clause, append with AND
-      // This is a naive approach; it doesn't handle complex queries with subqueries well.
+      // Append with AND
       if (orderByIndex > whereIndex) {
-        // Insert before ORDER BY
         modifiedQuery = query.slice(0, orderByIndex) + ` AND ${dateCondition} ` + query.slice(orderByIndex);
       } else {
-        // Append to the end
         modifiedQuery = query + ` AND ${dateCondition}`;
       }
     } else {
-      // No WHERE clause, so add one
+      // Add a new WHERE clause
        if (orderByIndex > -1) {
-        // Insert before ORDER BY
         modifiedQuery = query.slice(0, orderByIndex) + ` WHERE ${dateCondition} ` + query.slice(orderByIndex);
       } else {
-        // Append to the end
         modifiedQuery = query + ` WHERE ${dateCondition}`;
       }
     }

@@ -8,105 +8,74 @@ from sqlparse.tokens import Keyword, Name
 
 logger = logging.getLogger(__name__)
 
-def _get_result_columns(sql: str) -> List[str]:
+def extract_table_names(sql: str) -> List[str]:
     """
-    Parses a SQL query and returns a list of the final column names,
-    respecting aliases.
+    Extracts table names from a SQL query using a regex-based approach.
+    This finds words that follow FROM or JOIN clauses.
     """
-    parsed = sqlparse.parse(sql)[0]
-    
-    # Find the first SELECT statement's tokens
-    select_tokens = []
-    from_seen = False
-    for token in parsed.tokens:
-        if token.ttype is Keyword and token.value.upper() == 'FROM':
-            from_seen = True
-            break
-        select_tokens.append(token)
-
-    if not from_seen:
-        return []
-
-    # Process the tokens between SELECT and FROM
-    columns = []
-    for token in select_tokens:
-        if isinstance(token, IdentifierList):
-            for identifier in token.get_identifiers():
-                columns.append(identifier.get_alias() or identifier.get_real_name())
-        elif isinstance(token, Identifier):
-            columns.append(token.get_alias() or token.get_real_name())
-        elif token.ttype is Name:
-            columns.append(token.value)
-            
-    # The above can be messy, a simple split on ',' is often more reliable for simple queries
-    if not columns and parsed.get_type() == 'SELECT':
-        # Get the text between SELECT and FROM
-        select_part = ''.join(str(t) for t in select_tokens).strip()
-        if select_part.upper().startswith('SELECT'):
-            select_part = select_part[6:].strip()
-        
-        # Naive split and clean
-        for col_str in select_part.split(','):
-            col_str = col_str.strip()
-            # Try to find alias
-            if ' as ' in col_str.lower():
-                alias = col_str.split(' as ')[-1]
-                columns.append(alias.strip().replace('"', ''))
-            else:
-                # Take the last word, which is often the alias or column name
-                columns.append(col_str.split()[-1].replace('"', ''))
-
-    logger.info(f"Extracted result columns: {columns}")
-    return columns
-
-
-def _find_primary_date_column(result_columns: List[str]) -> str:
-    """Heuristic to find the best date column from a list of result columns."""
-    for col in result_columns:
-        if 'DATE' in col.upper() or 'CREATED' in col.upper():
-            return col
-    return None
-
-def _find_primary_id_column(result_columns: List[str]) -> str:
-    """Heuristic to find a primary key from a list of result columns."""
-    for col in result_columns:
-        if 'ID' in col.upper():
-            return col
-    return None
-
-def _generate_report_title_from_sql(sql: str) -> str:
-    """Creates a simple report title by extracting table names with a regex."""
     regex = r"\s(?:from|join)\s+([a-zA-Z0-9_.]+)"
     tables = re.findall(regex, sql, re.IGNORECASE)
-    cleaned_names = [table.split('.')[-1].replace('_', ' ').title() for table in tables]
-    if not cleaned_names:
+    cleaned_tables = [table.split('.')[-1] for table in tables]
+    logger.info(f"Extracted tables from query: {cleaned_tables}")
+    return [t.upper() for t in cleaned_tables]
+
+def _find_primary_date_column(schemas: Dict[str, List[Dict[str, Any]]]) -> str:
+    """Heuristic to find the best date column for grouping from a schema."""
+    if not schemas:
+        return None
+    # Get the first (and likely only) table's schema
+    first_table_schema = next(iter(schemas.values()), [])
+    for col in first_table_schema:
+        if col['type'] in ('DATE', 'TIMESTAMP'):
+            if 'CREATED' in col['name'].upper() or 'DATE' in col['name'].upper():
+                return col['name']
+    return None
+
+def _find_primary_id_column(schemas: Dict[str, List[Dict[str, Any]]]) -> str:
+    """Heuristic to find a primary key from a schema for counting."""
+    if not schemas:
+        return None
+    first_table_schema = next(iter(schemas.values()), [])
+    for col in first_table_schema:
+        if 'ID' in col['name'].upper():
+            return col['name']
+    return None
+
+def _generate_report_title(table_names: List[str]) -> str:
+    """Creates a simple report title from a list of table names."""
+    if not table_names:
         return "Summary Report"
+    cleaned_names = [name.replace('_', ' ').title() for name in table_names]
     return " vs ".join(cleaned_names) + " Report"
 
 
-def generate_summary_sql(base_sql: str) -> tuple[str, str]:
+def generate_summary_sql(base_sql: str, schemas: Dict[str, List[Dict[str, Any]]], granularity: str = "month") -> tuple[str, str]:
     """
-    Applies heuristics to the result columns of the base_sql to generate
+    Applies heuristics to the schemas of tables in the base_sql to generate
     a relevant summary SQL query and a report title.
-    Returns a tuple of (summary_sql, report_title).
     """
+    granularity_map = {
+        "month": {"trunc": "MM", "format": "Mon YYYY", "label": "Month"},
+        "week": {"trunc": "IW", "format": 'YYYY - "WW"', "label": "Week"},
+        "year": {"trunc": "YYYY", "format": "YYYY", "label": "Year"},
+    }
     
-    # --- Generate Title ---
-    report_title = _generate_report_title_from_sql(base_sql)
-    
-    # --- Parse SQL to find result columns ---
-    result_columns = _get_result_columns(base_sql)
-    if not result_columns:
-        raise ValueError("Could not parse the columns from the SELECT statement.")
+    if granularity not in granularity_map:
+        raise ValueError(f"Unsupported granularity: {granularity}")
 
-    # --- Apply Heuristics to Result Columns ---
-    date_col = _find_primary_date_column(result_columns)
-    id_col = _find_primary_id_column(result_columns)
+    trunc_format = granularity_map[granularity]["trunc"]
+    char_format = granularity_map[granularity]["format"]
+    label = granularity_map[granularity]["label"]
+
+    table_names = list(schemas.keys())
+    report_title = _generate_report_title(table_names)
+    
+    date_col = _find_primary_date_column(schemas)
+    id_col = _find_primary_id_column(schemas)
 
     if not date_col:
         raise ValueError("Could not determine a primary date column from the query's result columns for summary generation.")
 
-    # --- Build Summary Query ---
     count_expr = f'COUNT(DISTINCT {id_col})' if id_col else "COUNT(*)"
     
     summary_sql = f"""
@@ -114,16 +83,16 @@ def generate_summary_sql(base_sql: str) -> tuple[str, str]:
             {base_sql}
         )
         SELECT
-            TO_CHAR(TRUNC({date_col}, 'MM'), 'Mon YYYY') AS "Month",
+            TO_CHAR(TRUNC({date_col}, '{trunc_format}'), '{char_format}') AS "{label}",
             {count_expr} AS "Total Records"
         FROM
             detail_data
         WHERE
-            {date_col} >= ADD_MONTHS(SYSDATE, -6)
+            {date_col} >= ADD_MONTHS(SYSDATE, -36)
         GROUP BY
-            TRUNC({date_col}, 'MM')
+            TRUNC({date_col}, '{trunc_format}')
         ORDER BY
-            TRUNC({date_col}, 'MM')
+            TRUNC({date_col}, '{trunc_format}')
     """
     
     logger.info(f"Generated intelligent summary SQL: {summary_sql}")
