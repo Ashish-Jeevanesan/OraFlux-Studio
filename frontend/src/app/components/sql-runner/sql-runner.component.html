@@ -2,19 +2,35 @@
 <mat-card>
   <mat-card-header>
     <mat-card-title>SQL Runner</mat-card-title>
-    <mat-card-subtitle>Enter a SELECT statement to run against the database</mat-card-subtitle>
+    <mat-card-subtitle>Enter a natural language query or a raw SQL SELECT statement</mat-card-subtitle>
   </mat-card-header>
   <mat-card-content>
+    <div class="nl-query-section">
+      <mat-form-field class="nl-textarea" appearance="outline">
+        <mat-label>Describe what you want to query...</mat-label>
+        <textarea matInput rows="2" [(ngModel)]="nlQuery" placeholder="e.g., 'show me top 10 orders from last year for North America'"></textarea>
+      </mat-form-field>
+      <button mat-stroked-button color="primary" (click)="generateSql()" [disabled]="isGenerating || !nlQuery">
+        <span *ngIf="!isGenerating">Generate SQL</span>
+        <mat-spinner *ngIf="isGenerating" diameter="20"></mat-spinner>
+      </button>
+    </div>
+
     <mat-form-field class="sql-textarea" appearance="outline">
       <mat-label>SQL Query (SELECT only)</mat-label>
       <textarea matInput rows="5" [(ngModel)]="sqlQuery"></textarea>
     </mat-form-field>
-    <mat-checkbox [(ngModel)]="filterLast5Years" class="example-margin">Filter last 5 years (Kindly don't use this with complex queries with multiple tables)</mat-checkbox>
+    <mat-checkbox [(ngModel)]="filterLast5Years" class="example-margin">Filter last 5 years (best effort)</mat-checkbox>
     <div class="error-message" *ngIf="errorMessage">
       {{ errorMessage }}
     </div>
   </mat-card-content>
   <mat-card-actions>
+    <button mat-stroked-button
+            (click)="generateAnalytics.emit(filterLast5Years)"
+            [disabled]="dataSource.data.length === 0">
+      Generate Analytics Dashboard
+    </button>
     <button mat-stroked-button 
             color="accent" 
             (click)="generateReport.emit()" 

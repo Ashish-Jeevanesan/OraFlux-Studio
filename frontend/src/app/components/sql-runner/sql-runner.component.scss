@@ -4,6 +4,17 @@
   margin-bottom: 1rem;
 }
 
+.nl-query-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.nl-textarea {
+  flex-grow: 1;
+}
+
 .sql-textarea {
   width: 100%;
 }

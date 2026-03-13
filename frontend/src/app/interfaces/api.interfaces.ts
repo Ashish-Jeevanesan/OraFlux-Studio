@@ -103,6 +103,12 @@ export interface ReportDetailRequest {
   granularity: 'month' | 'week' | 'year';
 }
 
+export interface AnalyticsRequest {
+  sessionId: string;
+  baseSql: string;
+  filterLast5Years?: boolean;
+}
+
 
 // --- API Response Payloads ---
 
@@ -129,4 +135,19 @@ export interface SummaryReportResponse {
   detail: QueryRunResponse;
   summary: QueryRunResponse;
   title?: string;
+}
+
+export interface AnalyticsResponse {
+  title: string;
+  kpis: any[];
+  charts: any[];
+}
+
+export interface NlGenerateSqlRequest {
+  sessionId: string;
+  text: string;
+}
+
+export interface NlGenerateSqlResponse {
+  sql: string;
 }

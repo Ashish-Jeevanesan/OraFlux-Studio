@@ -157,3 +157,22 @@ class ReportDetailRequest(BaseModel):
     baseSql: str
     selectedValue: str
     granularity: str
+
+# /analytics/generate
+class AnalyticsRequest(BaseModel):
+    sessionId: UUID
+    baseSql: str
+    filterLast5Years: bool = True
+
+class AnalyticsResponse(BaseModel):
+    title: str
+    kpis: List[Dict[str, Any]]
+    charts: List[Dict[str, Any]]
+
+# /query/generate-from-nl
+class NlGenerateSqlRequest(BaseModel):
+    sessionId: UUID
+    text: str
+
+class NlGenerateSqlResponse(BaseModel):
+    sql: str

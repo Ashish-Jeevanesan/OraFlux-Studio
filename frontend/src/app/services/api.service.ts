@@ -14,10 +14,14 @@ import {
   DrilldownRequest,
   IntelligentSummaryRequest,
   ReportDetailRequest,
+  AnalyticsRequest,
+  NlGenerateSqlRequest,
   StatusResponse,
   QueryRunResponse,
   AggregateQueryResponse,
   SummaryReportResponse,
+  AnalyticsResponse,
+  NlGenerateSqlResponse,
 } from '../interfaces/api.interfaces';
 
 @Injectable({
@@ -113,6 +117,27 @@ export class ApiService {
     };
     return this.http
       .post<QueryRunResponse>(`${this.apiUrl}/query/report-detail`, payload)
+      .pipe(catchError(this.handleError));
+  }
+
+  generateAnalyticsDashboard(baseSql: string, filterLast5Years: boolean): Observable<AnalyticsResponse> {
+    const payload: AnalyticsRequest = {
+      baseSql,
+      filterLast5Years,
+      sessionId: this.sessionService.getSessionId(),
+    };
+    return this.http
+      .post<AnalyticsResponse>(`${this.apiUrl}/analytics/generate`, payload)
+      .pipe(catchError(this.handleError));
+  }
+
+  generateSqlFromNl(text: string): Observable<NlGenerateSqlResponse> {
+    const payload: NlGenerateSqlRequest = {
+      text,
+      sessionId: this.sessionService.getSessionId(),
+    };
+    return this.http
+      .post<NlGenerateSqlResponse>(`${this.apiUrl}/query/generate-from-nl`, payload)
       .pipe(catchError(this.handleError));
   }
 

@@ -40,10 +40,13 @@ import { QueryRunResponse, ColumnInfo } from '../../interfaces/api.interfaces';
 export class SqlRunnerComponent {
   @Output() querySuccess = new EventEmitter<{ sql: string, columns: ColumnInfo[] }>();
   @Output() generateReport = new EventEmitter<void>();
+  @Output() generateAnalytics = new EventEmitter<boolean>();
 
+  nlQuery = '';
   sqlQuery = 'SELECT * FROM t501_order';
   filterLast5Years = true;
   isLoading = false;
+  isGenerating = false;
   errorMessage: string | null = null;
   
   // Table properties
@@ -60,6 +63,24 @@ export class SqlRunnerComponent {
   rowCountLimited = false;
 
   constructor(private apiService: ApiService, private snackBar: MatSnackBar) {}
+
+  generateSql() {
+    if (!this.nlQuery) return;
+    this.isGenerating = true;
+    this.errorMessage = null;
+
+    this.apiService.generateSqlFromNl(this.nlQuery)
+      .pipe(finalize(() => this.isGenerating = false))
+      .subscribe({
+        next: (res) => {
+          this.sqlQuery = res.sql;
+          this.snackBar.open('SQL query generated successfully!', 'Close', { duration: 2000 });
+        },
+        error: (err) => {
+          this.errorMessage = err.message;
+        }
+      });
+  }
 
   runQuery() {
     if (!this.sqlQuery) return;
@@ -94,7 +115,6 @@ export class SqlRunnerComponent {
     const query = this.sqlQuery.trim();
     const upperCaseQuery = query.toUpperCase();
 
-    // Heuristic: Find a suitable date column from a prioritized list
     const dateColumnCandidates = [
       'C501_ORDER_DATE', 
       'C501_LAST_UPDATED_DATE', 
@@ -113,7 +133,7 @@ export class SqlRunnerComponent {
 
     if (!dateColumn) {
       this.snackBar.open("Could not automatically determine a date column for the 5-year filter.", "Warning", { duration: 3000 });
-      return query; // Return original query if no suitable column is found
+      return query;
     }
 
     const fiveYearsAgo = new Date();
@@ -122,21 +142,18 @@ export class SqlRunnerComponent {
 
     const dateCondition = `${dateColumn} >= TO_DATE('${dateString}', 'YYYY-MM-DD')`;
 
-    // Very basic check to see if there's a WHERE clause
     const whereIndex = upperCaseQuery.lastIndexOf('WHERE');
     const orderByIndex = upperCaseQuery.lastIndexOf('ORDER BY');
 
     let modifiedQuery = query;
 
     if (whereIndex > -1) {
-      // Append with AND
       if (orderByIndex > whereIndex) {
         modifiedQuery = query.slice(0, orderByIndex) + ` AND ${dateCondition} ` + query.slice(orderByIndex);
       } else {
         modifiedQuery = query + ` AND ${dateCondition}`;
       }
     } else {
-      // Add a new WHERE clause
        if (orderByIndex > -1) {
         modifiedQuery = query.slice(0, orderByIndex) + ` WHERE ${dateCondition} ` + query.slice(orderByIndex);
       } else {
@@ -161,14 +178,10 @@ export class SqlRunnerComponent {
     this.displayedColumns = response.columns.map((c) => c.name);
     this.dataSource.data = response.rows;
     
-    // The backend doesn't know the total count for performance reasons.
-    // We simulate it for the paginator.
     const currentResultsLength = response.rows.length;
     if (response.rowCountLimited) {
-      // There are more pages
       this.totalRows = (this.currentPage + 2) * this.pageSize;
     } else {
-      // This is the last page
       this.totalRows = this.currentPage * this.pageSize + currentResultsLength;
     }
 
@@ -183,7 +196,6 @@ export class SqlRunnerComponent {
     );
   }
 
-  // Helper to get a value from a row based on column index
   getCellValue(row: any[], index: number): any {
     return row[index];
   }

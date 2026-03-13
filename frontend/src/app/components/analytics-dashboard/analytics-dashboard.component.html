@@ -1,0 +1,28 @@
+<mat-card>
+  <mat-card-header>
+    <button mat-icon-button (click)="back.emit()" aria-label="Back to query runner">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <mat-card-title>
+      {{ dashboardData?.title || 'Analytics Dashboard' }}
+    </mat-card-title>
+  </mat-card-header>
+  <mat-card-content>
+    <div *ngIf="isLoading" style="text-align: center; padding: 40px;">
+      <mat-spinner></mat-spinner>
+      <p>Generating analytics...</p>
+    </div>
+    <div *ngIf="error" style="color: red; padding: 20px;">
+      <h3>Error</h3>
+      <pre>{{ error }}</pre>
+    </div>
+    <div *ngIf="dashboardData">
+      <div class="kpi-grid">
+        <app-kpi-card *ngFor="let kpi of dashboardData.kpis" [name]="kpi.name" [value]="kpi.value"></app-kpi-card>
+      </div>
+      <div class="chart-grid">
+        <app-analytics-chart *ngFor="let chart of dashboardData.charts" [name]="chart.name" [type]="chart.type" [data]="chart.data"></app-analytics-chart>
+      </div>
+    </div>
+  </mat-card-content>
+</mat-card>

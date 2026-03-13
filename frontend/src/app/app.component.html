@@ -14,11 +14,12 @@
   </div>
 
   <ng-template #mainApp>
-    <div *ngIf="!showSummaryReport; else summaryReport">
+    <div *ngIf="!showSummaryReport && !showAnalyticsDashboard; else reportViews">
       <div class="main-app-container">
         <app-sql-runner 
           (querySuccess)="onQuerySuccess($event)"
-          (generateReport)="onGenerateReport()">
+          (generateReport)="onGenerateReport()"
+          (generateAnalytics)="onGenerateAnalytics($event)">
         </app-sql-runner>
         
         <app-chart-suggestions 
@@ -33,12 +34,20 @@
         </app-report-builder>
       </div>
     </div>
-    <ng-template #summaryReport>
+
+    <ng-template #reportViews>
       <div class="main-app-container">
         <app-summary-report 
+          *ngIf="showSummaryReport"
           [baseSql]="lastSuccessfulSql"
           (back)="onBackToQuery()">
         </app-summary-report>
+        <app-analytics-dashboard
+          *ngIf="showAnalyticsDashboard"
+          [baseSql]="lastSuccessfulSql"
+          [filterLast5Years]="lastFilterState"
+          (back)="onBackToQuery()">
+        </app-analytics-dashboard>
       </div>
     </ng-template>
   </ng-template>

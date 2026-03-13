@@ -9,3 +9,4 @@ ruff
 pytest
 httpx
 sqlparse
+google-generativeai

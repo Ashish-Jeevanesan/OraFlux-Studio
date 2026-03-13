@@ -32,3 +32,6 @@ Thumbs.db
 docker-compose.override.yml
 
 /screenshots/
+
+# Environment files
+.env

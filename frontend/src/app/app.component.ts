@@ -16,6 +16,7 @@ import { SqlRunnerComponent } from './components/sql-runner/sql-runner.component
 import { ReportBuilderComponent } from './components/report-builder/report-builder.component';
 import { ChartSuggestionsComponent } from './components/chart-suggestions/chart-suggestions.component';
 import { SummaryReportComponent } from './components/summary-report/summary-report.component';
+import { AnalyticsDashboardComponent } from './components/analytics-dashboard/analytics-dashboard.component';
 import { SessionService } from './services/session.service';
 import { ColumnInfo, ChartConfig } from './interfaces/api.interfaces';
 
@@ -39,19 +40,20 @@ const GITHUB_ICON = `
     ReportBuilderComponent,
     ChartSuggestionsComponent,
     SummaryReportComponent,
+    AnalyticsDashboardComponent,
   ],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
 })
 export class AppComponent implements OnInit, OnDestroy {
-  // App state
   isConnected = false;
   showSummaryReport = false;
+  showAnalyticsDashboard = false;
   
-  // Data passed between components
   lastSuccessfulSql = '';
   lastQueryColumns: ColumnInfo[] = [];
   activeSuggestion: ChartConfig | null = null;
+  lastFilterState = true;
 
   private sessionSub?: Subscription;
 
@@ -66,20 +68,13 @@ export class AppComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.sessionSub = this.sessionService.startSession().subscribe({
-      next: () => {
-        this.snackBar.open('New session started!', 'Close', { duration: 2000 });
-      },
-      error: (err) => {
-        this.snackBar.open(`Failed to start session: ${err.message}`, 'Error', {
-          panelClass: ['error-snackbar'],
-        });
-      },
+      next: () => { this.snackBar.open('New session started!', 'Close', { duration: 2000 }); },
+      error: (err) => { this.snackBar.open(`Failed to start session: ${err.message}`, 'Error', { panelClass: ['error-snackbar'] }); },
     });
   }
 
   ngOnDestroy() {
     this.sessionSub?.unsubscribe();
-    // The browser closing will trigger the backend sweeper, but we can also be explicit
     if (this.sessionService.getSessionId()) {
       this.sessionService.closeSession().subscribe();
     }
@@ -87,16 +82,14 @@ export class AppComponent implements OnInit, OnDestroy {
 
   onConnectionSuccess() {
     this.isConnected = true;
-    this.snackBar.open('Successfully connected to Oracle!', 'Close', {
-      duration: 3000,
-      panelClass: ['success-snackbar'],
-    });
   }
   
   onQuerySuccess(event: { sql: string, columns: ColumnInfo[] }) {
     this.lastSuccessfulSql = event.sql;
     this.lastQueryColumns = event.columns;
-    this.activeSuggestion = null; // Reset suggestion on new query
+    this.activeSuggestion = null;
+    this.showSummaryReport = false;
+    this.showAnalyticsDashboard = false;
   }
 
   onSuggestionClicked(config: ChartConfig) {
@@ -105,9 +98,17 @@ export class AppComponent implements OnInit, OnDestroy {
 
   onGenerateReport() {
     this.showSummaryReport = true;
+    this.showAnalyticsDashboard = false;
+  }
+
+  onGenerateAnalytics(filterState: boolean) {
+    this.lastFilterState = filterState;
+    this.showAnalyticsDashboard = true;
+    this.showSummaryReport = false;
   }
 
   onBackToQuery() {
     this.showSummaryReport = false;
+    this.showAnalyticsDashboard = false;
   }
 }
