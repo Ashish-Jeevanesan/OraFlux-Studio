@@ -215,3 +215,27 @@ Network\admin`
     - Report titles were made dynamic based on the tables found in the query.
     - Client-side sorting (`matSort`) was added to the detail table.
     - An issue with a "back" button rendering as text instead of an icon was fixed by replacing the font-based `<mat-icon>` with an inline SVG, which was the established pattern for this project.
+- **Secure Configuration:**
+    - Implemented a secure workflow for database credentials by using a `db_profiles.properties.template` file.
+    - The local `db_profiles.properties` file containing secrets is now ignored by Git.
+    - The backend service was updated to prioritize the local file but fall back to the template, ensuring the application can run in different environments.
+
+## 11. Advanced Analytics Dashboard
+
+- **Goal:** Implement a powerful, dynamic dashboard generation system based on the tables present in a user's query, inspired by a user-provided HTML example.
+- **Architecture:**
+    - **Report Blueprints:** A new `analytics_service.py` was created on the backend. It uses a "Blueprint" pattern. Instead of one report, it has classes like `ShippingInfoBlueprint`, `OrderBlueprint`, and `InvoiceBlueprint`.
+    - **Dynamic Selection:** The service inspects the user's SQL query to see which tables are used (e.g., `T501_ORDER`) and selects the corresponding blueprint.
+    - **Dynamic Query Generation:** Each blueprint defines a series of KPIs and charts relevant to its data type. It generates multiple aggregation queries on the fly based on the user's base query.
+    - **New API Endpoint:** A new `/analytics/generate` endpoint was created to orchestrate this process, running all generated queries concurrently and returning a single, structured JSON payload describing the entire dashboard (KPIs, chart data, etc.).
+- **Frontend Implementation:**
+    - New reusable components were created: `kpi-card`, `analytics-chart`.
+    - A new parent `analytics-dashboard` component was created to receive the complex JSON from the backend and dynamically render the appropriate number of KPIs and charts.
+- **UI/UX Refinements:**
+    - **Currency Formatting:** KPI cards now automatically detect names like "Value" or "Amount" and prepend a `$` symbol.
+    - **Chart Sizing:** Pie chart radius was increased for better readability.
+    - **Data Densification:** Time-series charts (bar, line) now automatically fill in missing date gaps (e.g., months with no data) to provide a continuous x-axis, which was a key bug fix.
+    - **Responsive Layout:** The chart grid now responsively switches to a single-column layout on smaller screens.
+- **Additional Features:**
+    - A "Filter last 5 years" checkbox was integrated with the analytics dashboard feature, allowing the backend to apply a date filter to the base query before generating the analytics.
+    - Granularity control (Year, Week, Month) was added to the summary report, allowing users to change the time aggregation dynamically.

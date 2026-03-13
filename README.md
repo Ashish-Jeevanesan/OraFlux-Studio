@@ -9,11 +9,21 @@ This project is a lightweight, ephemeral report viewer built with Angular and Fa
 - **SQL Runner**: Execute `SELECT` statements in a simple editor.
 - **Paginated Results**: View query results in a table with server-side pagination.
 - **Report Builder**: Generate Bar, Line, Pie, and Histogram charts from query results.
+- **AI-Powered Suggestions**: Get automatic suggestions for relevant charts based on your data.
+- **Advanced Analytics Dashboard**: For certain recognized tables (`T907_SHIPPING_INFO`, `T501_ORDER`, `T503_INVOICE`), a powerful, pre-configured analytics dashboard can be generated.
 - **Secure by Design**:
     - Enforces `SELECT`-only queries.
     - Uses read-only credentials (user-provided).
     - Implements query timeouts and row caps.
     - Ephemeral nature means no sensitive data is ever stored.
+
+### Advanced Analytics Dashboard
+
+For certain recognized tables (`T907_SHIPPING_INFO`, `T501_ORDER`, `T503_INVOICE`, `T504_CONSIGNMENT`), a powerful, pre-configured analytics dashboard can be generated.
+
+- **How it Works:** When you run a query against one of these tables, a "Generate Analytics Dashboard" button will appear. Clicking it triggers a backend service that runs a series of pre-defined analytical queries (KPIs, aggregations, time-series) to generate a full dashboard.
+- **Dynamic & Intelligent:** The system is "blueprint-based." It detects the primary table in your query and selects the appropriate blueprint (e.g., `ShippingBlueprint`, `OrderBlueprint`) to generate the most relevant dashboard.
+- **Rich Visualizations:** The dashboard includes multiple KPIs and charts, providing a comprehensive overview of your data, inspired by the Globus Medical Warehouse Analytics report.
 
 ## Tech Stack
 
